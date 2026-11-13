@@ -96,6 +96,9 @@ st.markdown("""
 .ct-next {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:12px 16px; margin:6px 0;}
 .ct-mono {font-family:'SF Mono', Menlo, Consolas, monospace; font-size:.8rem; color:#33495A;}
 .ct-small {font-size:.82rem; color:#556676;}
+.ct-cant {border:1px dashed #94A3B8; background:#F8FAFC; border-radius:12px; padding:10px 14px; margin-top:10px;
+          font-size:.86rem; color:#334155;}
+.ct-cant .it {margin:3px 0;}
 .ct-guide {display:flex; gap:10px; flex-wrap:wrap; margin:-.3rem 0 1rem;}
 .ct-guide .g {display:flex; align-items:center; gap:8px; background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px;
               padding:4px 14px 4px 4px; font-size:.82rem; color:#33495A;}
@@ -388,6 +391,10 @@ left.markdown(f"""
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
   <div class="ct-sum">{esc(ready['summary'])}</div>
 </div>""", unsafe_allow_html=True)
+if ready.get("cannot_tell"):
+    left.markdown('<div class="ct-cant"><div class="ct-eyebrow">What this can\'t tell you</div>'
+                  + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"]) + "</div>",
+                  unsafe_allow_html=True)
 right.markdown(f"""
 <div class="ct-qcard">
   <div class="row"><span class="lab">Intended use</span>{esc(card['intended_use'])}</div>
@@ -395,6 +402,11 @@ right.markdown(f"""
   <div class="row"><span class="lab">Outcome</span>{esc(card['outcome'])}</div>
   <div class="row"><span class="lab">Acceptable limitations</span>{esc(card['acceptable_limitations'])}</div>
 </div>""", unsafe_allow_html=True)
+if ready.get("group_samples"):
+    right.download_button(f"⬇ The {len(ready['group_samples'])} samples this question can use (CSV)",
+                          "sample_id,patient_id\n" + "".join(f"{s},{s[:12]}\n" for s in ready["group_samples"]),
+                          f"{card['id']}-samples.csv", help="The samples in this release that can answer the question, "
+                          "after the question's own filters: which samples the verdict is about.")
 
 n_files = len(ready["release"]["files"])
 n_changes = len(findings["findings"]) if findings else 0

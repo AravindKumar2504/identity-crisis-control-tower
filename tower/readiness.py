@@ -19,6 +19,18 @@ from .diff import Comparison
 from .release import ROW_FILES, Release
 from .robustness import conclusion
 
+# What a release change can't tell anyone, by kind (the same limitations findings.json carries).
+CHANGE_LIMITS = {
+    "sample_swap": "Which release labels the swapped samples correctly: fingerprints prove the data moved, not where it belongs.",
+    "duplicate": "Which id the copied measurements truly belong to.",
+    "membership_change": "Why samples were removed or added: a redaction or withdrawn consent is legitimate, a processing loss is not.",
+    "label_conflict": "Whether a changed value is a documented correction: the tool can't see the pathology or lab report behind it.",
+    "missing_data": "Why values became empty or a file is missing.",
+    "other": "What caused a change the tool couldn't classify.",
+}
+GENERAL_LIMIT = ("Anything outside the files and fields this question reads, or whether a value matches the original "
+                 "pathology or lab report.")
+
 ORDER = [("block", "Blocked"), ("unknown", "Insufficient Evidence"), ("warn", "Conditional")]
 
 
@@ -148,12 +160,23 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
     if verdict == "Conditional":
         next_steps += [_touch_step(t) for t in touching]
     review_items = list(dict.fromkeys([x.id for x in material if x.status != "pass"] + [t["finding"] for t in touching]))
+    # What this result can't tell the user, shown under the verdict: the limits of the checks and changes behind it.
+    limits = [x.limitation for x in deciding if x.limitation] + [CHANGE_LIMITS.get(t["kind"], CHANGE_LIMITS["other"])
+                                                                 for t in touching]
+    if robust:
+        limits.append("Whether a systematic error such as a mislabelled ER test changed the result: the 95% range "
+                      "covers sampling variation only.")
+    limits = limits or [x.limitation for x in issues if x.material and x.limitation]
+    cannot_tell = list(dict.fromkeys(limits + [GENERAL_LIMIT]))[:3]
+    group_ids = sorted(card_group(release, card))
     doc = {
         "card": {k: card.get(k) for k in ("id", "title", "intended_use", "group_studied", "outcome",
                                           "acceptable_limitations", "not_acceptable", "out_of_scope")},
         "release": {"name": release.name, "files": files},
         "compared_with": cmp.a.name if cmp else None,
-        "group_size": len(card_group(release, card)),
+        "group_size": len(group_ids),
+        "group_samples": group_ids,
+        "cannot_tell": cannot_tell,
         "verdict": verdict,
         "reasons": reasons,
         "summary": summary(verdict, reasons, next_steps, pending),
@@ -234,6 +257,8 @@ def markdown(doc: dict) -> str:
         lines += ["", "## Release changes that touch this question", ""]
         lines += [f"- {t['finding']} ({t['kind']}, {t['file']}): {len(t['samples'])} sample{'' if len(t['samples']) == 1 else 's'}: {t['summary']}"
                   for t in doc["release_changes"]]
+    if doc.get("cannot_tell"):
+        lines += ["", "## What this can't tell you", ""] + [f"- {x}" for x in doc["cannot_tell"]]
     if doc["next_steps"]:
         lines += ["", "## Next steps", ""]
         lines += [f"- {s['step']} Evidence that would change the verdict: {s['evidence_needed']}" for s in doc["next_steps"]]

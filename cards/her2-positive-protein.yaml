@@ -15,4 +15,4 @@ group:
   in_files: [protein_rppa.tsv.gz]
 limits:
   missing_fraction: 0.10
-checks: [inputs_present, her2_field_conflict, missing_values]
+checks: [inputs_present, her2_field_conflict, missing_values, site_shift]

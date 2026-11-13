@@ -21,7 +21,7 @@ Aravind may be asleep for a while, so everything you need is here. The remaining
 | Aakruti | `tower/checks/survival.py`, `tower/checks/labels.py` | don't edit |
 | Chirag | `tower/checks/coverage.py`, `tower/checks/design.py` | don't edit |
 | Madhu | the README **Team** section and video link, `docs/DEMO.md`, `docs/USER.md` | don't edit |
-| Aravind | `app.py`, `cards/`, the rest of `tower/`, `docs/CONTRACTS.md`, the rest of the README | |
+| Aravind | `app.py`, `cards/`, the rest of `tower/` (including `tower/checks/bias.py` and `fitness.py`), `docs/CONTRACTS.md`, the rest of the README | |
 
 Need a change in someone else's file? Post the exact change in the group instead of editing it. Don't rename checks, don't change the cards, and don't change the `Issue` fields: the cards and the screen already expect them.
 
@@ -41,7 +41,7 @@ These five decide verdicts, so they come first.
 
 | Check | File | Cards | What to compute | Expected on release A | Status rule |
 |---|---|---|---|---|---|
-| `survival_redacted` | survival.py | os-luminal-a, pfi-luminal-a | Samples in the card's group whose `survival.tsv` row has a value in `Redaction` | 2 in each card's group: TCGA-A7-A0DC-01, TCGA-AR-A0U1-01 (release A has 6 redacted rows, 5 of them primary tumors) | warn if any; next step: exclude them and say so |
+| `survival_redacted` | survival.py | os-luminal-a, pfi-luminal-a | Samples in the card's group whose `survival.tsv` row has a value in `Redaction` | 2 in each card's group: TCGA-A7-A0DC-01, TCGA-AR-A0U1-01 (release A has 6 redacted rows, 5 of them primary tumors) | warn if any; next step: keep them, but have a person review them before use (the organizers' ruling on Discord: keep redacted survival rows, but flag them) |
 | `survival_zero_time` | survival.py | os-luminal-a, pfi-luminal-a | Group samples whose `<endpoint>.time` is 0 (endpoint = `card["endpoint"]["name"]`) | 11 for OS, 11 for PFI | warn if any; next step: exclude and report them |
 | `patient_double_count` | survival.py | os-luminal-a, pfi-luminal-a | Patients (`_PATIENT`, or the first 12 characters of the id) with more than one sample in the card's group | 0, so `pass` (material=False). Put in `numbers` that 135 patients have identical tumor and normal survival rows, which would count twice if normals were included | warn if any patient appears twice |
 | `subtype_columns_disagree` | labels.py | subtype-mix, os-luminal-a, pfi-luminal-a | `PAM50Call_RNAseq` vs `PAM50_mRNA_nature2012` among group samples with both filled, mapping LumA to Luminal A, LumB to Luminal B, Basal to Basal-like, Her2 to HER2-enriched, Normal to Normal-like | 52 of 508 disagree (10.2%) | warn if the share is above `card["limits"]["subtype_disagreement"]` (0.05; use 0.05 when a card has no limit); next step: name the subtype column used and report the result under both |
@@ -55,8 +55,9 @@ Sources to cite: the TCGA Pan-Cancer Clinical Data Resource (Liu et al., Cell 20
 
 **1. Checkpoint 2 first (the organizers require it today, about 1 hour).**
 - Clone our repo into an empty folder, follow only the README Quick start, and run `python -m tower doctor --full`. Write down every step that broke or confused you.
-- Find our paired team in the Discord checkpoint channel, send them our repo link and the latest commit (`git log -1`), and get theirs. Run their repo from an empty folder using only their README, and send them what broke.
-- Post both lists in Discord and in our group.
+- **Our pair is Highlanders** (the organizers posted the pairs on Discord, Thursday 5:59 PM). They haven't posted anything yet, so post first in #oncosys-hackathon: our repo link (https://github.com/AravindKumar2504/identity-crisis-control-tower) and the exact commit (`git log -1 --format=%h`), and ask for theirs. Reply "swapped" there once links are exchanged.
+- Run their repo from an empty folder using only their README, and send them what broke or was unclear. They do the same with ours; fix what they find before Saturday.
+- Post what worked and what broke, for both repos, in Discord and in our group.
 
 **2. Then four checks.**
 
@@ -100,8 +101,17 @@ Invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, t
 - **You want a different threshold**: don't change the card; post the suggestion.
 - **You're blocked**: post in the group what you tried; meanwhile move to your next task.
 
+### What the judges want (from the organizers)
+
+- Every working tool finds the same changes, so show what happens after: why it matters, what the user should do next, and what the tool can't tell them (Discord, Friday 8:55 AM).
+- One result a judge can verify and one limitation they can inspect, and a judge can use the tool without us narrating (challenge README and slides).
+- The unseen input can be a changed release or a changed research question (event page). We handle both: the envelope command and "Ask your own question".
+- The required data problems include missing values, unlikely values, unclear field meanings, bias, information that gives a model a shortcut, and missing source details (event page).
+- Judges are mostly industry and startup people plus a hospital researcher, so say everything plainly.
+
 ### Saturday (everyone)
 
+- Every team member attends (the organizers' rule).
 - At the Cabral Center by 10 AM (doors 9:30), laptop charged, charger with you.
 - `git pull` in both repos, then `python -m tower doctor --full`.
 - One full rehearsal around 11. Code freeze at 2:15 PM: no pushes after that.

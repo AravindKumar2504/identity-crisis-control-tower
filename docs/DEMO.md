@@ -2,6 +2,8 @@
 
 Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
 
+**What the judges want (the organizers, Friday 8:55 AM):** every working tool finds the same changes, so show why they matter, what the user should do next, and what the tool can't tell them. The slides add: name your user, show one result a judge can verify and one limitation they can inspect. This script covers each: the user in the hook; the measured effects and the HER2 loss (why it matters); the next steps (what to do); the "What this can't tell you" box (the limitation); and the Analyses tab, where the organizers' own script gives the same number (the result a judge can verify).
+
 **Roles (suggested):** Madhu speaks and Aravind drives the laptop. Aakruti and Chirag answer questions on their own parts.
 
 **Before you start:**
@@ -9,11 +11,11 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 - A terminal is open in `identity-crisis-control-tower` with the venv on, and `python -m tower doctor` ends with "Ready for the sealed envelope."
 - The browser is zoomed so all 8 question buttons are visible.
 
-## The script (about 370 words, roughly 148 seconds of speaking plus clicks; the optional hormone therapy click adds about 14 seconds)
+## The script (about 380 words, roughly 152 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
 
 ### 0:00 Hook (20 s) · screen: the verdict card
 
-> A lab gets a new TCGA breast cancer release. Same files, same 747 protein samples. A row count sees nothing wrong. But two samples traded data, five are copies of other samples, and five real ones are gone. Cohort Control Tower catches that, then asks: is this release still fit for your research question?
+> Our user is a research data engineer, and a new TCGA breast cancer release just arrived. Same files, same 747 protein samples. A row count sees nothing wrong. But two samples traded data, five are copies of other samples, and five real ones are gone. Cohort Control Tower catches that, then asks: is this release still fit for your research question?
 
 ### 0:20 What changed (60 s) · screen: What changed tab, then Analyses
 
@@ -24,6 +26,8 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 > Only A1 reads those samples, so only A1 is rerun: the ER-alpha difference moves from 3.051 to 3.019. A2, the subtype mix, is left alone, because nothing it reads changed.
 >
 > So does the conclusion still hold? Yes. The 95 percent range is 2.835 to 3.179, well above zero. The verdict is Conditional, and each change comes with a next step: restore the swapped profiles, exclude the copies, and ask the provider why the samples were removed.
+>
+> *[point at "What this can't tell you" under the verdict]* And it says what it can't tell you: which release labels the swapped samples correctly.
 
 ### 1:20 Change the question (60 s) · screen: the question board
 
@@ -44,16 +48,14 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 *[Hormone therapy, optional: skip it if you're running long]*
 
 > Hormone therapy response: Blocked. The release doesn't record which tumors got hormone therapy, or any response to it.
->
-> Every block names its source, the next step, and the evidence that would change it.
 
 ### 2:20 Review and sign-off (30 s) · screen: Review and sign-off tab
 
-> No fix is applied on its own. A person approves, rejects, or asks for more evidence on every proposed fix, and a rejection needs a reason. Sign-off writes a record with the release fingerprints and every decision, in the organizers' shared format, checked by their validator. And if a file is damaged or missing, the tool refuses with Insufficient Evidence instead of guessing.
+> No fix is applied on its own. A person approves, rejects, or asks for more evidence on every proposed fix, and a rejection needs a reason. Sign-off writes a signed record in the organizers' shared format. And if a file is damaged or missing, the tool refuses with Insufficient Evidence instead of guessing.
 
 ### 2:50 Close (10 s)
 
-> We tested it on 20 releases, 7 of them built to break it, with every answer key written before the tool ran. 20 of 20 pass. One command, about two seconds. Hand us the envelope, or your own research question.
+> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about two seconds each. Hand us the envelope, or your own research question.
 
 **If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
@@ -98,6 +100,7 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 - **PFI may change.** It shows "Ready on the checks that ran, but not fully checked yet" today, because Aakruti's survival checks aren't built. Once they land it may say Conditional (what PLAN.md expects), so re-read the board and adjust that line.
 - **Nothing "not checked yet".** Until every check a card lists is built or removed from the card, the summary says "Not checked yet" and the board says "N not checked yet". Both must be gone before judging.
 - **Hook.** Keep the practice hook. Don't use the duplicate-patient story (TCGA-AN-A0FE and TCGA-AN-A0FG): neither sample is in any analysis, and the fact comes from outside annotations, which the rules ask us not to link.
+- **The hospital line.** On the ER-alpha question the verdict now opens with the hospital mix (0.154, over the card's 0.15 limit). That's the bias check the event page asks for: if a judge asks, say requiring protein data changes which hospitals the tumors come from, and the next step is to check the result holds with each large hospital left out.
 - **Timing.** Read it aloud twice with a stopwatch.
 
 ## Where the claims come from
