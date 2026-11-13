@@ -68,7 +68,7 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): question board, review and sign-off. Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group |
 | P2 | README polish, demo video, 3-minute pitch built on docs/USER.md | Madhu | Rehearsed under 3 minutes |
-| P2 | Optional: type a question in plain English, get an editable draft card (local model) | Chirag | Only if everything above is done |
+| P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
 
 ## Timeline
 

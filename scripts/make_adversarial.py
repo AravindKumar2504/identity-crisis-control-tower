@@ -9,7 +9,6 @@ Usage (from this repo, with the challenge repo next to it):
 """
 from __future__ import annotations
 
-import gzip
 import json
 import pathlib
 import random

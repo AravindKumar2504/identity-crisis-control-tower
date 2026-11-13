@@ -17,6 +17,7 @@ import sys
 import altair as alt
 import pandas as pd
 import streamlit as st
+import yaml
 
 REPO = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
@@ -24,6 +25,8 @@ sys.path.insert(0, str(REPO))
 from tower.analyses import rerun  # noqa: E402
 from tower.cards import list_cards, load_card  # noqa: E402
 from tower.checks import LOAD_ERRORS  # noqa: E402
+from tower.questions import (ENDPOINTS, FEATURES, GROUPINGS, LABELS, SUBTYPES, THERAPIES,  # noqa: E402
+                             model_question, protein_question, survival_question, treatment_question)
 from tower.diff import compare  # noqa: E402
 from tower.findings import build  # noqa: E402
 from tower.readiness import assess  # noqa: E402
@@ -163,8 +166,8 @@ def inputs_sig() -> tuple:
 
 
 @st.cache_data(show_spinner="Checking the release...")
-def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = ()):
-    card = load_card(card_id)
+def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = (), card_json: str = ""):
+    card = json.loads(card_json) if card_json else load_card(card_id)   # a question asked on screen has no file
     a = load_release(RAW, "release-A")
     if b_path is None:
         return None, assess(card, a, allow_missing=allow_missing), []
@@ -176,7 +179,7 @@ def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = 
 
 
 @st.cache_data(show_spinner="Judging every question on this release...")
-def board(b_path: str | None, allow_missing: bool, sig: tuple = ()) -> list[dict]:
+def board(b_path: str | None, allow_missing: bool, sig: tuple = (), extra_json: str = "[]") -> list[dict]:
     """Every question card judged on the same release, so the screen can show that the verdict depends on the question."""
     a = load_release(RAW, "release-A")
     rel, cmp, results = a, None, None
@@ -185,7 +188,7 @@ def board(b_path: str | None, allow_missing: bool, sig: tuple = ()) -> list[dict
         cmp = compare(a, rel)
         results, _ = rerun(a, rel, cmp.changes)
     out = []
-    for c in list_cards():
+    for c in list_cards() + json.loads(extra_json):
         try:
             d = assess(c, rel, cmp, results, allow_missing=allow_missing)
             out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
@@ -208,6 +211,25 @@ def reference_numbers(path: str) -> dict:
         return {x["analysis"]: x for x in json.loads(r.stdout)}
     except Exception as e:  # the comparison is a convenience; it must never break the screen
         return {"error": f"{type(e).__name__}: {e}"[:300]}
+
+
+@st.cache_data
+def protein_rows() -> list[str]:
+    """Protein rows of release A, the commonly asked ones first (for the ask-your-own-question form)."""
+    first = ["ERALPHA", "PR", "HER2", "AR", "GATA3", "BCL2", "EGFR"]
+    try:
+        rows = load_release(RAW, "release-A").table("protein_rppa.tsv.gz").features()
+    except Exception:
+        rows = []
+    return [r for r in first if r in rows or not rows] + sorted(r for r in rows if r not in first)
+
+
+def add_question(card: dict) -> None:
+    """Add a question built on screen and open it (runs before the rerun, so it may set the card picker)."""
+    if card["title"] not in {c["title"] for c in list_cards()}:     # the same question as a card in cards/: open that card
+        st.session_state["custom_cards"] = [c for c in st.session_state.get("custom_cards", [])
+                                            if c["id"] != card["id"]] + [card]
+    st.session_state["card_title"] = card["title"]
 
 
 def pick(title: str) -> None:
@@ -239,12 +261,37 @@ with st.sidebar:
                     st.rerun()
 
     st.markdown("**2 · The research question**")
-    cards = list_cards()
+    cards = list_cards() + st.session_state.get("custom_cards", [])
     titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
         st.session_state["card_title"] = list(titles)[0]
     card_title = st.selectbox("Question card", list(titles), key="card_title")
-    card = load_card(titles[card_title])
+    card = next(c for c in cards if c["title"] == card_title)
+    with st.expander("Ask your own question"):
+        kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
+                                                 "Response to a treatment"], key="q_kind")
+        if kind == "Survival by subtype":
+            ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep")
+            focus = st.selectbox("Subtype to focus on", ["", *SUBTYPES], key="q_focus",
+                                 format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"))
+            new = survival_question(ep, focus or None)
+        elif kind == "A protein between groups":
+            prot = st.selectbox("Protein (RPPA)", protein_rows(), key="q_prot")
+            grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp")
+            new = protein_question(prot, grp)
+        elif kind == "A prediction model":
+            lab = st.selectbox("Label to predict", list(LABELS), format_func=lambda k: LABELS[k], key="q_lab")
+            feats = st.multiselect("Data the model learns from", list(FEATURES), default=["protein_rppa.tsv.gz"],
+                                   format_func=lambda k: FEATURES[k], key="q_feats")
+            new = model_question(lab, feats)
+        else:
+            new = treatment_question(st.selectbox("Treatment", list(THERAPIES), key="q_ther"))
+        st.caption(new["title"])
+        st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,))
+        st.caption("The same rules judge it as the cards in cards/. Nothing is saved unless you download it.")
+        if card["id"].startswith("custom-"):
+            st.download_button("⬇ Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
+                               f"{card['id']}.yaml")
 
     st.markdown("**3 · Reviewer**")
     reviewer = st.text_input("Your name")
@@ -256,7 +303,8 @@ with st.sidebar:
 # ------------------------------------------------------------------------------------------------ analysis
 b_path = opts[release_label]
 try:
-    findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig())
+    findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
+                                       json.dumps(card) if card["id"].startswith("custom-") else "")
 except Exception as e:  # never show a stack trace to a judge
     st.error(f"The check couldn't run: {e}")
     st.stop()
@@ -357,7 +405,7 @@ st.markdown('<div class="ct-steps">' + "".join(
 st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
             unsafe_allow_html=True)
 qcols = st.columns(4)
-for i, q in enumerate(board(b_path, allow_missing, inputs_sig())):
+for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
     with qcols[i % 4]:
         st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
                   type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"])

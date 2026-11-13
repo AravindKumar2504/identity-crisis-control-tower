@@ -53,7 +53,7 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 
 ### 2:50 Close (10 s)
 
-> We tested it on 20 releases, 7 of them built to break it, with every answer key written before the tool ran. 20 of 20 pass. One command, about two seconds. Hand us the envelope.
+> We tested it on 20 releases, 7 of them built to break it, with every answer key written before the tool ran. 20 of 20 pass. One command, about two seconds. Hand us the envelope, or your own research question.
 
 **If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
@@ -80,11 +80,16 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
    cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/E<two digits>/release --challenge ../oncosys-hackathon-challenge
    ```
 
+## If a judge gives us a different research question
+
+The Track 1 warm-up says judges may change the question. Open **Ask your own question** in the sidebar, pick the closest kind (survival by subtype, a protein between groups, a prediction model, or response to a treatment), click **Judge this question**, and read the verdict and its first reason aloud. The question joins the board, so you can click back to any earlier one. If it fits no kind, say which data the release has and which kind comes closest.
+
 ## Likely judge questions
 
 - **How do you know it's right?** We have 20 of 20 test releases. Thirteen were made with the organizers' own generator and graded against its answer keys. We built the other seven, each with its answer written first (`python scripts/scorecard.py ../oncosys-hackathon-challenge/data/tcga-brca/releases`).
 - **What about a change you never planned for?** Any changed value shows up in a fingerprint. If it isn't a swap, a copy or a loss, it's reported as an edit, with every sample named.
 - **Why Blocked, not a warning?** Even with perfect files, this data can't support that question. A warning would let someone publish a Luminal A survival result from under three years of follow-up.
+- **What if I change the question?** Ask it in the sidebar form: the same written rules judge it, with the same sources and next steps.
 - **Is AI making these calls?** No. Every verdict comes from a written rule with a cited source, and a person signs off.
 - **Clinical use?** No. It's for research only: no diagnosis, no treatment advice, no risk scores.
 
