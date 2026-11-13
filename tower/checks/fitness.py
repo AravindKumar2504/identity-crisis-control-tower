@@ -42,7 +42,7 @@ def inputs_present(release, card):
     for f, items in (card.get("uses") or {}).items():
         fields += [f"{f}:{i}" for i in items or []]
         if not release.has(f):
-            missing_files.append(f)
+            missing_files.append(f + (f" (present but unreadable: {release.unreadable[f]})" if f in release.unreadable else ""))
             continue
         t = release.table(f)
         have = set(t.features())

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release
+from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release, UnreadableFile
 
 BLANKS = {"", "NA", "nan", "NaN", "null", "None"}
 
@@ -51,7 +51,12 @@ def compare(a: Release, b: Release) -> Comparison:
     changes: list[Change] = []
     unchanged, compared, notes = [], [], []
     for f in ALL_FILES:
+        if f in a.unreadable:
+            raise UnreadableFile(f"release {a.name}'s {f} can't be read ({a.unreadable[f]}); fetch release A again")
         in_a, in_b = a.has(f), b.has(f)
+        if f in b.unreadable and in_a:
+            changes.append(_unreadable(f, b))
+            continue
         if not in_a and not in_b:
             continue
         if in_a and not in_b:
@@ -68,13 +73,24 @@ def compare(a: Release, b: Release) -> Comparison:
         if a.content_sha256[f] == b.content_sha256[f]:
             unchanged.append(f)
             continue
+        ta = a.table(f)
+        try:
+            tb = b.table(f)
+        except UnreadableFile:
+            changes.append(_unreadable(f, b))
+            continue
         compared.append(f)
-        ta, tb = a.table(f), b.table(f)
         if f in ROW_FILES:
             changes += _diff_rows(f, ta.frame, tb.frame, a, b)
         else:
             changes += _diff_matrix(f, ta, tb, a, b)
     return Comparison(a, b, changes, unchanged, compared, notes)
+
+
+def _unreadable(f: str, b: Release) -> Change:
+    return Change("missing_data", f, [], f"{f} in release {b.name} can't be read ({b.unreadable.get(f, 'unreadable')}), "
+                  "so it was refused instead of compared, and nothing that reads it can be checked.",
+                  detail={"file_missing": True, "unreadable": b.unreadable.get(f, "")})
 
 
 # ----------------------------------------------------------------------------------------------- matrices
@@ -141,7 +157,8 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                               detail={"cycle": path, "pairs": [[path[i], path[(i + 1) % len(path)]] for i in range(len(path))]}))
 
     # 2) Copies: an added id, or a changed id overwritten, now carrying a profile that still exists elsewhere.
-    dups = []
+    dups, renames, renamed_from = [], [], set()
+    removed_set = set(removed)
     for x in added + [c for c in changed if c not in explained]:
         if x not in source:
             continue
@@ -149,7 +166,12 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
         still_there = [y for y in src if y in sb and fb.get(y) == fa[y]]
         if x in sa and fa.get(x) in {fa[y] for y in src}:
             continue                       # already identical in release A: not a new copy
-        if still_there or x in added:
+        gone = [y for y in src if y in removed_set and y not in renamed_from]
+        if x in added and not still_there and gone:
+            renames.append((x, gone[0]))   # the profile moved to a new id and the old id is gone: a rename
+            renamed_from.add(gone[0])
+            explained.add(x)
+        elif still_there or x in added:
             dups.append((x, (still_there or src)[0]))
             explained.add(x)
     if dups:
@@ -159,6 +181,15 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                           notes={x: f"identical to {y} (release {a.name})" for x, y in dups},
                           evidence_release={x: "B" for x, _ in dups},
                           detail={"copies": [{"new_id": x, "copied_from": y, "new_id_is_new": x in added} for x, y in dups]}))
+
+    if renames:
+        out.append(Change("other", f, [i for pair in renames for i in pair],
+                          f"In {f}, {len(renames)} sample id(s) were renamed: each profile now appears under a new id "
+                          f"and its old id is gone, so analyses would treat it as a different sample.",
+                          notes={**{x: f"carries the profile {y} had in release {a.name}" for x, y in renames},
+                                 **{y: f"gone from release {b.name}; its profile now sits under {x}" for x, y in renames}},
+                          evidence_release={**{x: "B" for x, _ in renames}, **{y: "A" for _, y in renames}},
+                          detail={"renames": [{"new_id": x, "old_id": y} for x, y in renames]}))
 
     # 3) Moves into a removed id's place (one-way relabel of an id).
     moves = [(x, source[x][0]) for x in changed if x not in explained and x in source]
@@ -173,7 +204,7 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                           detail={"moves": [{"id": x, "profile_from": y} for x, y in moves]}))
 
     # 4) Lost and gained samples.
-    lost = [x for x in removed]
+    lost = [x for x in removed if x not in renamed_from]
     if lost:
         ctx = _subgroups(lost, a)
         same_count = len(sa) == len(sb)

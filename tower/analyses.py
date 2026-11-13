@@ -88,7 +88,8 @@ def touches(change: Change, an: Analysis, pop_a: set[str], pop_b: set[str], a: R
     if not hit:
         # A gained or relabelled primary tumor can enter the analysis without being in either population yet.
         return False, f"none of these samples is in {an.id}'s group of samples in either release"
-    if change.kind in ("missing_data", "other") and change.file == "protein_rppa.tsv.gz":
+    edits_only = "edited" in change.detail or "blanked" in change.detail   # renames and moves always touch A1's samples
+    if change.kind in ("missing_data", "other") and change.file == "protein_rppa.tsv.gz" and edits_only:
         pa, pb = _protein(a), _protein(b)
         moved = [s for s in hit if s in pa.columns and s in pb.columns and "ERALPHA" in pa.index
                  and "ERALPHA" in pb.index and str(pa.at["ERALPHA", s]) != str(pb.at["ERALPHA", s])]
@@ -115,7 +116,7 @@ def rerun(a: Release, b: Release, changes: list[Change], selected: list[str] | N
             continue
         pop_a = set(before["sample_ids"])
         if not an.can_run(b):
-            missing = [f for f in an.reads if not b.has(f)]
+            missing = [f + (" (unreadable)" if f in b.unreadable else "") for f in an.reads if not b.has(f)]
             for i, ch in enumerate(changes):
                 impact[i][an.id] = touches(ch, an, pop_a, set(), a, b)
             results[an.id] = {"status": "not_rerun", "before": _public(before), "after": None,

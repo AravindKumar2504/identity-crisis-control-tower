@@ -82,12 +82,17 @@ class Table:
         return out
 
 
+class UnreadableFile(Exception):
+    """A file exists but can't be read as the expected table (damaged, empty or wrongly formatted)."""
+
+
 @dataclass
 class Release:
     name: str
     path: pathlib.Path
     file_sha256: dict[str, str] = field(default_factory=dict)
     content_sha256: dict[str, str] = field(default_factory=dict)
+    unreadable: dict[str, str] = field(default_factory=dict)     # file -> why it can't be read
     _tables: dict[str, Table] = field(default_factory=dict, repr=False)
 
     @property
@@ -103,7 +108,12 @@ class Release:
 
     def table(self, name: str) -> Table:
         if name not in self._tables:
-            self._tables[name] = _parse(self.path / name, name)
+            try:
+                self._tables[name] = _parse(self.path / name, name)
+            except Exception as e:     # refuse a malformed file instead of comparing garbage
+                self.unreadable[name] = f"could not be parsed as the expected table ({type(e).__name__}: {e})"[:240]
+                self.content_sha256.pop(name, None)
+                raise UnreadableFile(f"{name}: {self.unreadable[name]}") from e
         return self._tables[name]
 
 
@@ -111,10 +121,16 @@ def _parse(path: pathlib.Path, name: str) -> Table:
     if name in ROW_FILES:
         df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
         idcol = ROW_FILES[name]
+        if idcol not in df.columns:
+            raise ValueError(f"no '{idcol}' column; the file may not be tab-separated")
         df = df.set_index(idcol, drop=True)
+        if df.empty:
+            raise ValueError("the table has no rows")
         return Table(name, df, "rows", True)
     if name in TEXT_MATRICES:
         df = pd.read_csv(path, sep="\t", index_col=0, dtype=str, keep_default_na=False)
+        if df.shape[1] == 0 or not any(str(c).startswith("TCGA-") for c in df.columns):
+            raise ValueError("no TCGA sample columns found")
         return Table(name, df, "columns", True)
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt") as fh:
@@ -122,6 +138,8 @@ def _parse(path: pathlib.Path, name: str) -> Table:
     dtypes = {c: np.float32 for c in header[1:]}
     dtypes[header[0]] = str                       # gene or protein names
     df = pd.read_csv(path, sep="\t", index_col=0, dtype=dtypes, engine="c")
+    if df.shape[1] == 0 or not any(str(c).startswith("TCGA-") for c in df.columns):
+        raise ValueError("no TCGA sample columns found")
     return Table(name, df, "columns", False)
 
 
@@ -137,8 +155,13 @@ def load_release(path: str | pathlib.Path, name: str | None = None) -> Release:
         fp = p / f
         if fp.exists():
             rel.file_sha256[f] = sha256_file(fp)
-            rel.content_sha256[f] = sha256_content(fp)
-    if not rel.content_sha256:
+            try:
+                if fp.stat().st_size == 0:
+                    raise ValueError("the file is empty")
+                rel.content_sha256[f] = sha256_content(fp)
+            except Exception as e:     # e.g. a truncated gzip: report it, never crash
+                rel.unreadable[f] = f"{type(e).__name__}: {e}"[:240]
+    if not rel.content_sha256 and not rel.unreadable:
         raise FileNotFoundError(f"no TCGA-BRCA files found in {p}")
     return rel
 

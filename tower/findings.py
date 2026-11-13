@@ -189,9 +189,9 @@ def build(cmp: Comparison, results: dict, impact: dict, team: str = "Identity_Cr
 
 def decide(cmp, results, findings, ids) -> tuple[str, str]:
     needed = {f for an in ANALYSES if an.id in ids for f in an.reads}
-    missing = sorted(f for f in needed if not cmp.b.has(f))
+    missing = sorted(f + (" (it can't be read)" if f in cmp.b.unreadable else "") for f in needed if not cmp.b.has(f))
     if missing:
-        return "Insufficient Evidence", f"Release {cmp.b.name} has no {', '.join(missing)}, which the question needs."
+        return "Insufficient Evidence", f"Release {cmp.b.name} has no usable {', '.join(missing)}, which the question needs."
     blocked = [x for x in ids if results.get(x, {}).get("blocked")]
     if blocked:
         return "Blocked", f"{', '.join(blocked)} cannot be rerun on release {cmp.b.name}."

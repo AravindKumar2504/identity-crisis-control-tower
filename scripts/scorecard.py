@@ -46,26 +46,40 @@ def main(folders: list[str]) -> None:
     a = load_release(RAW, "release-A")
     rows, total_ok = [], True
     for folder in folders:
-        for rel_dir in sorted(p for p in pathlib.Path(folder).iterdir() if (p / "CHANGES.json").exists()):
-            key = json.loads((rel_dir / "CHANGES.json").read_text())
+        dirs = [p for p in pathlib.Path(folder).iterdir() if (p / "CHANGES.json").exists() or (p / "EXPECTED.json").exists()]
+        for rel_dir in sorted(dirs):
+            if (rel_dir / "CHANGES.json").exists():          # organizers' generator: their answer key
+                key = json.loads((rel_dir / "CHANGES.json").read_text())
+                exp, want_verdict, n_changes = expected(key), None, len(key["changes"])
+            else:                                             # our own test releases: answer written at build time
+                key = json.loads((rel_dir / "EXPECTED.json").read_text())
+                exp, want_verdict, n_changes = {tuple(x) for x in key["expect"]}, key["verdict"], 1
             t0 = time.time()
-            b = load_release(rel_dir)
-            cmp = compare(a, b)
-            results, impact = rerun(a, b, cmp.changes)
-            doc = build(cmp, results, impact)
+            try:
+                b = load_release(rel_dir)
+                cmp = compare(a, b)
+                results, impact = rerun(a, b, cmp.changes)
+                doc = build(cmp, results, impact)
+            except Exception as e:                            # a crash is a failure, never a pass
+                total_ok = False
+                rows.append((rel_dir.name, n_changes, len(exp), 0, len(exp), 0, f"CRASH {type(e).__name__}", "", "", "FAIL"))
+                print(f"{rel_dir.name}: crashed: {e}")
+                continue
             secs = time.time() - t0
-            exp, got = expected(key), cited(doc)
+            got = cited(doc)
             missed, extra = exp - got, got - exp
-            ok = not missed and not extra
+            ok = not missed and not extra and (want_verdict is None or doc["verdict"] == want_verdict)
             total_ok &= ok
-            rows.append((rel_dir.name, len(key["changes"]), len(exp), len(exp & got), len(missed), len(extra),
-                         doc["verdict"], ", ".join(f"{x['id']} {x['status']}" for x in doc["analyses"]), f"{secs:.1f}s",
+            verdict = doc["verdict"] + ("" if want_verdict in (None, doc["verdict"]) else f" (expected {want_verdict})")
+            rows.append((rel_dir.name, n_changes, len(exp), len(exp & got), len(missed), len(extra),
+                         verdict, ", ".join(f"{x['id']} {x['status']}" for x in doc["analyses"]), f"{secs:.1f}s",
                          "PASS" if ok else "FAIL"))
             if not ok:
                 print(f"{rel_dir.name}: missed {sorted(missed)[:6]} extra {sorted(extra)[:6]}")
-    print(f"{'release':<14} {'changes':>7} {'expected':>8} {'found':>5} {'missed':>6} {'extra':>5}  verdict / analyses / time")
+    print(f"{'release':<24} {'changes':>7} {'expected':>8} {'found':>5} {'missed':>6} {'extra':>5}  verdict / analyses / time")
     for r in rows:
-        print(f"{r[0]:<14} {r[1]:>7} {r[2]:>8} {r[3]:>5} {r[4]:>6} {r[5]:>5}  {r[6]} | {r[7]} | {r[8]}  {r[9]}")
+        print(f"{r[0]:<24} {r[1]:>7} {r[2]:>8} {r[3]:>5} {r[4]:>6} {r[5]:>5}  {r[6]} | {r[7]} | {r[8]}  {r[9]}")
+    print(f"{sum(r[9] == 'PASS' for r in rows)} of {len(rows)} releases pass")
     print("ALL PASS" if total_ok else "SOME FAILED")
 
 
