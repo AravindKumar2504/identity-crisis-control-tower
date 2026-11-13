@@ -125,6 +125,8 @@ def run_check(card_ref: str, release_dir, against_dir=None, out: pathlib.Path | 
         print(f"\n{card['title']}\n  Verdict: {doc['verdict']}")
         for r in doc["reasons"]:
             print(f"  - {r}")
+        for s in doc["next_steps"][:1]:
+            print(f"  Next step: {s['step']}")
         for x in doc["issues"]:
             mark = {"pass": "ok", "warn": "!!", "block": "XX", "unknown": "??"}[x["status"]]
             print(f"    [{mark}] {x['id']}{'' if x['material'] else ' (pending or not material)'}")
