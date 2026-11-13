@@ -15,9 +15,9 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 - Scorecard: 20 of 20 test releases pass. 13 are built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). 7 more test changes their generator can't make: edited values, a removed protein row, edited survival outcomes, a renamed sample id, and three damaged releases (a truncated file, a comma-separated file and an empty file), which are refused with Insufficient Evidence instead of crashing. Their answers are written into `EXPECTED.json` when each release is built, before the tool runs. Every planted sample found, nothing extra reported, about a second per release. We also built 481 releases with the organizers' generator at random settings: 476 match its answer keys exactly. In four of the other five, the answer key lists a change that left no trace in the data (a copy that a later change deleted, or a value changed and then changed back); the fifth is a copy whose original was later removed, which the tool reports as a rename.
 - Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, overall survival in Luminal A is Blocked while progression-free interval in the same tumors is not; ESR1 expression vs ER status is Insufficient Evidence on the practice envelope because envelopes have no RNA; and ER-alpha by ER status is Conditional even on release A, because requiring protein data shifts the group's hospital mix by 0.155, over the card's 0.15 limit).
 - Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, so severity rests on a number (on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium). For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
-- The review screen works (`streamlit run app.py`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
+- The review screen works (`python -m streamlit run app.py --server.address localhost`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
-- Next: nine release A data checks (Aakruti and Chirag), the 9 PM dry run and the demo video. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
+- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. Next: the 9 PM dry run and the demo video. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
 
@@ -68,7 +68,7 @@ Add `--card all` to also judge every research-question card against the envelope
 ### The review screen
 
 ```bash
-streamlit run app.py --server.address localhost
+python -m streamlit run app.py --server.address localhost
 ```
 
 Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question in the sidebar. The screen has five pages: **Overview** (the verdict and a one-line summary, the counts, the question board, what to do next and what the tool can't tell you), **What changed** (every finding with its samples, and a before-and-after table of the values behind each one), **Evidence** (every check with its rule and source, the analyses rerun, and the evidence trail), **Review and sign-off**, and **Fool the Tower**. In **Review and sign-off**, a reviewer enters a name and role, then approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
@@ -127,7 +127,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/plant.py` | Fool the Tower: plants errors with the organizers' generator and scores the tool |
 | `tower/doctor.py` | `python -m tower doctor`: is this machine ready for the sealed envelope? |
 | `tower/readiness.py` | The verdict (Ready, Conditional, Blocked, Insufficient Evidence), its reasons and the evidence trail |
-| `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`), the bias check (`bias.py`) and release A data checks |
+| `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`), the bias check (`bias.py`) and the release A data checks (`survival.py`, `labels.py`, `coverage.py`, `design.py`) |
 | `cards/` | Eight research-question cards |
 | `tower/cli.py` | `compare`, `envelope`, `cards` and `check` commands |
 | `tower/review.py` | Review decisions, the sign-off, and the exports |
@@ -140,20 +140,40 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `docs/` | Team plan, user research, contracts and the demo script |
 | `examples/practice/` | The tool's output on the organizers' practice envelope: `findings.json` (passes their validator) and the plain-English `report.md` |
 
-## Data and credits
+## Third-party code and licenses
 
-Judged results use the event's frozen TCGA-BRCA release, fetched with the challenge repo's `data/tcga-brca/fetch.py` and checked against its published checksums. No raw TCGA files are committed here. Data credits, as `DATA_LICENSES.md` in the [challenge repo](https://github.com/disleveK/oncosys-hackathon-challenge) asks:
+No third-party code is copied into this repo, and it contains no third-party fonts, scripts or images (the screen uses system fonts only). At run time the tool calls two of the organizers' scripts from the challenge repo, unchanged: `envelopes/unseal.py` and `format/validate.py`.
+
+| Package | Version | License | Used for |
+|---|---|---|---|
+| pandas | 3.1.1 | BSD-3-Clause | Reading and comparing the release tables |
+| NumPy | 2.5.4 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0 | Numeric matrices, fingerprints, resampling |
+| PyYAML | 6.0.3 | MIT | Reading the research-question cards |
+| Streamlit | 1.67.0 | Apache-2.0 | The review screen (`app.py`) |
+| Altair | 6.3.0 | BSD-3-Clause | Charts on the review screen (installed with Streamlit) |
+| jsonschema | 4.26.0 | MIT | Used by the organizers' `format/validate.py` to check `findings.json` |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause | Used by the organizers' `envelopes/unseal.py` to open the sealed envelopes |
+
+Versions are the ones installed when this list was made; `requirements.txt` sets minimums only.
+
+### Data sources and credits
+
+| Data | Source | License |
+|---|---|---|
+| TCGA-BRCA clinical, mutation, copy number, RNA and protein files | UCSC Xena TCGA hub, fetched with `data/tcga-brca/fetch.py` from the [challenge repo](https://github.com/disleveK/oncosys-hackathon-challenge) (checksums verified; not committed here) | TCGA open-access data (see the challenge repo's `DATA_LICENSES.md`) |
+| TCGA-BRCA curated survival | TCGA Pan-Cancer Clinical Data Resource, via UCSC Xena | As above |
 
 - TCGA: "The results shown here are in whole or part based upon data generated by the TCGA Research Network: https://www.cancer.gov/tcga."
-- UCSC Xena: Goldman, M.J. et al. Visualizing and interpreting cancer genomics data via the Xena platform. *Nat Biotechnol* 38, 675-678 (2020).
-- Survival data: Liu, J. et al. An Integrated TCGA Pan-Cancer Clinical Data Resource to Drive High-Quality Survival Outcome Analytics. *Cell* 173, 400-416 (2018). The tool's endpoint rules cite this paper too.
-- PAM50 (cited by the tool's model-design rule): Parker, J.S. et al. Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes. *J Clin Oncol* 27, 1160-1167 (2009).
+- UCSC Xena: Goldman, M.J. et al. Visualizing and interpreting cancer genomics data via the Xena platform. *Nat Biotechnol* 38, 675–678 (2020).
+- Survival data: Liu, J. et al. An Integrated TCGA Pan-Cancer Clinical Data Resource to Drive High-Quality Survival Outcome Analytics. *Cell* 173, 400–416 (2018).
+- Subtype and HER2 columns (cited by the label and design checks): Cancer Genome Atlas Network. Comprehensive molecular portraits of human breast tumours. *Nature* 490, 61–70 (2012).
+- PAM50 (cited by the model-design rule): Parker, J.S. et al. Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes. *J Clin Oncol* 27, 1160–1167 (2009).
+
+No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); Gitleaks will be run before submission.
+
+No AI model or API key is used.
 
 The data is de-identified but patient-derived: research use only. This tool makes no diagnosis, treatment recommendation, risk score or clinical claim, and every finding asks a person to review it.
-
-## Third-party code
-
-No third-party code is copied into this repo. At run time the tool calls the organizers' `envelopes/unseal.py` and `format/validate.py` from the challenge repo. Libraries: pandas (BSD-3-Clause), NumPy (BSD-3-Clause), jsonschema (MIT), PyYAML (MIT), Streamlit (Apache-2.0, the review screen), Altair (BSD-3-Clause, charts, installed with Streamlit), cryptography (Apache-2.0 or BSD-3-Clause, used by `unseal.py`).
 
 ## Team
 
