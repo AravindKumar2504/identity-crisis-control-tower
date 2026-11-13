@@ -58,8 +58,11 @@ def _own(eff: dict) -> tuple[float, str]:
     return worst, "; ".join(parts)
 
 
-def severity(ch, affected: list[str], results: dict, a, eff: dict | None = None) -> tuple[str, str]:
+def severity(ch, affected: list[str], results: dict, a, eff: dict | None = None,
+             reasons: str = "") -> tuple[str, str]:
     if not affected:
+        if reasons:
+            return "low", f"This cannot move A1 or A2 ({reasons}); it is still wrong data."
         where = f"the '{ch.detail['column']}' column" if ch.detail.get("column") else ch.file
         return "low", f"No protected analysis reads {where}, so this cannot move A1 or A2; it is still wrong data."
     if ch.detail.get("file_missing") or any(results.get(x, {}).get("blocked") for x in affected):
@@ -135,7 +138,8 @@ def build(cmp: Comparison, results: dict, impact: dict, team: str = "Identity_Cr
         fid = f"F{i + 1}"
         affected = [x for x in ids if impact.get(i, {}).get(x, (False, ""))[0]]
         not_aff = [x for x in ids if x not in affected]
-        sev, why = severity(ch, affected, results, a, eff_all.get(i))
+        reasons = "; ".join(f"{x}: {impact[i][x][1]}" for x in ids if x in impact.get(i, {}))
+        sev, why = severity(ch, affected, results, a, eff_all.get(i), reasons)
         ev = [{"kind": "sample", "id": s, "release": names.get(ch.evidence_release.get(s, "B"), b.name),
                "file": ch.file, "note": ch.notes.get(s, "")} for s in ch.samples]
         if "A1" in affected and ch.file == "protein_rppa.tsv.gz":
@@ -144,7 +148,6 @@ def build(cmp: Comparison, results: dict, impact: dict, team: str = "Identity_Cr
         if not ev:
             ev.append({"kind": "file", "id": ch.file, "release": b.name if b.has(ch.file) else a.name,
                        "note": "file-level change"})
-        reasons = "; ".join(f"{x}: {impact[i][x][1]}" for x in ids if x in impact.get(i, {}))
         findings.append({"id": fid, "kind": ch.kind, "summary": f"{ch.summary} Why it matters: {why}",
                          "severity": sev, "confidence": ch.confidence, "evidence": ev,
                          "affects_analyses": affected, "not_affected_analyses": not_aff,

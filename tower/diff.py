@@ -129,8 +129,9 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
             source[x] = cands
 
     explained: set[str] = set()
+    changed_set = set(changed)
     # 1) Cycles among changed samples: swaps (2) and rotations (3+).
-    nxt = {x: [y for y in source.get(x, []) if y in set(changed)] for x in changed}
+    nxt = {x: [y for y in source.get(x, []) if y in changed_set] for x in changed}
     seen = set()
     for start in changed:
         if start in seen or not nxt.get(start):
@@ -157,16 +158,33 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                               detail={"cycle": path, "pairs": [[path[i], path[(i + 1) % len(path)]] for i in range(len(path))]}))
 
     # 2) Copies: an added id, or a changed id overwritten, now carrying a profile that still exists elsewhere.
-    dups, renames, renamed_from = [], [], set()
+    b_profiles = set(fb.values())
+
+    def copy_of_present(y):
+        """The sample whose release-A profile y now carries, when that sample still holds its own profile."""
+        return next((z for z in source.get(y, []) if z in sb and fb.get(z) == fa[z]), None)
+
+    dups, renames, renamed_from, later_swaps, reused, dup_notes = [], [], set(), [], [], {}
     removed_set = set(removed)
     for x in added + [c for c in changed if c not in explained]:
-        if x not in source:
+        if x not in source or x in explained:
             continue
         src = source[x]
         still_there = [y for y in src if y in sb and fb.get(y) == fa[y]]
         if x in sa and fa.get(x) in {fa[y] for y in src}:
             continue                       # already identical in release A: not a new copy
         gone = [y for y in src if y in removed_set and y not in renamed_from]
+        if x in added and not still_there and not gone:
+            # A new id holds a changed sample's release-A profile, and that sample now holds a copy of a sample that
+            # is still in place: a copy was made under the new id, then the new id traded places with that sample.
+            y = next((y for y in src if y in changed_set and y not in explained and copy_of_present(y)), None)
+            if y is not None:
+                d = copy_of_present(y)
+                later_swaps.append((x, y, d))
+                dups.append((x, d))
+                dup_notes[x] = f"made as a copy of {d}'s profile, then traded places with {y}, which now holds the copy"
+                explained.update({x, y})
+                continue
         if x in added and not still_there and gone:
             renames.append((x, gone[0]))   # the profile moved to a new id and the old id is gone: a rename
             renamed_from.add(gone[0])
@@ -174,11 +192,21 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
         elif still_there or x in added:
             dups.append((x, (still_there or src)[0]))
             explained.add(x)
+            if x in sa and fa[x] not in b_profiles:
+                reused.append(x)           # the id's own profile is gone and the id now holds a copy: lost, then re-used
+    for x, y, d in later_swaps:
+        out.append(Change("sample_swap", f, [x, y],
+                          f"In {f}, {x} (a new id made as a copy of {d}) and {y} traded places: {x} now carries the "
+                          f"profile {y} had in release {a.name}, and {y} carries the copy of {d}.",
+                          notes={x: f"now holds the profile {y} had in release {a.name}",
+                                 y: f"now holds the copy of {d} that was made under {x}"},
+                          evidence_release={x: "B", y: "B"}, confidence="medium",
+                          detail={"cycle": [x, y], "pairs": [[x, y], [y, x]], "after_copy_of": d}))
     if dups:
         out.append(Change("duplicate", f, [d[0] for d in dups],
                           f"In {f}, {len(dups)} sample id(s) carry a profile identical to another sample's "
                           f"profile from release {a.name}, so the same measurements are counted twice.",
-                          notes={x: f"identical to {y} (release {a.name})" for x, y in dups},
+                          notes={x: dup_notes.get(x, f"identical to {y} (release {a.name})") for x, y in dups},
                           evidence_release={x: "B" for x, _ in dups},
                           detail={"copies": [{"new_id": x, "copied_from": y, "new_id_is_new": x in added} for x, y in dups]}))
 
@@ -191,27 +219,34 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                           evidence_release={**{x: "B" for x, _ in renames}, **{y: "A" for _, y in renames}},
                           detail={"renames": [{"new_id": x, "old_id": y} for x, y in renames]}))
 
-    # 3) Moves into a removed id's place (one-way relabel of an id).
+    # 3) A sample now carries the profile another id had in release A, and that id no longer holds it: the two
+    #    traded places and the partner was then removed (a removed partner is also reported as missing below).
     moves = [(x, source[x][0]) for x in changed if x not in explained and x in source]
     for x, y in moves:
         explained.add(x)
-    if moves:
-        out.append(Change("other", f, [m[0] for m in moves],
-                          f"In {f}, {len(moves)} sample id(s) now carry the profile another id had in release "
-                          f"{a.name}, and that other id's data is gone: the data may be filed under the wrong id.",
-                          notes={x: f"now holds the profile {y} had in release {a.name}" for x, y in moves},
-                          evidence_release={x: "B" for x, _ in moves}, confidence="medium",
-                          detail={"moves": [{"id": x, "profile_from": y} for x, y in moves]}))
+        y_gone = y not in sb
+        out.append(Change("sample_swap", f, [x, y],
+                          f"In {f}, {x} now carries the profile {y} had in release {a.name}"
+                          + (f", and {y} is no longer in release {b.name}: the two traded places and {y} was then "
+                             "removed (it is also reported as missing)." if y_gone else
+                             f", and {y} no longer holds it: the two traded places."),
+                          notes={x: f"now holds the profile {y} had in release {a.name}",
+                                 y: (f"traded places with {x}, then removed from release {b.name}" if y_gone
+                                     else f"its release-{a.name} profile now sits under {x}")},
+                          evidence_release={x: "B", y: "A" if y_gone else "B"}, confidence="medium",
+                          detail={"cycle": [x, y], "pairs": [[x, y], [y, x]], "partner_removed": y_gone}))
 
     # 4) Lost and gained samples.
-    lost = [x for x in removed if x not in renamed_from]
+    lost = [x for x in removed if x not in renamed_from] + reused
     if lost:
         ctx = _subgroups(lost, a)
         same_count = len(sa) == len(sb)
         out.append(Change("membership_change", f, lost,
                           f"In {f}, {len(lost)} sample(s) present in release {a.name} are missing from release {b.name}"
                           f"{ctx}{'; the total sample count is unchanged, so a count check would not notice' if same_count else ''}.",
-                          notes={x: f"present in {a.name}, absent in {b.name}" for x in lost},
+                          notes={x: (f"its release-{a.name} profile is gone from release {b.name}; the id now holds a copy "
+                                     "of another sample" if x in reused else f"present in {a.name}, absent in {b.name}")
+                                 for x in lost},
                           evidence_release={x: "A" for x in lost},
                           detail={"direction": "lost", "same_total": same_count}))
     gained = [x for x in added if x not in explained]
