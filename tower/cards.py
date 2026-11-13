@@ -59,6 +59,15 @@ def card_group(release: Release, card: dict) -> set[str]:
     return ids
 
 
+def card_base_group(release: Release, card: dict) -> set[str]:
+    """The card's samples before its value and not-blank filters (sample type and files only).
+
+    Use it to measure missing values: a card's own group already drops the blanks, so blanks counted inside it are zero.
+    """
+    base = {k: v for k, v in (card.get("group") or {}).items() if k in ("sample_type", "in_files")}
+    return card_group(release, {**card, "group": base})
+
+
 def card_fields(card: dict) -> list[str]:
     """Every field the card reads, as 'file:column-or-row' (for the evidence trail)."""
     return [f"{f}:{c}" for f, cols in (card.get("uses") or {}).items() for c in (cols or [])]

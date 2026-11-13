@@ -2,15 +2,110 @@
 
 Five-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 2:15 PM ET**; be at the Cabral Center by 10 AM (doors 9:30).
 
-## Friday: what's left, by person
+## Friday and Saturday: who does what (read this first)
 
-Pull first (`git pull`), and restart the screen if it's open. `python -m tower doctor` checks your setup in one command.
+Aravind may be asleep for a while, so everything you need is here. The remaining work is split three ways, about 4 to 5 hours each, and **nobody edits the same files**, so you can all work at the same time without merge conflicts. If something here is unclear, use your best judgment, write down what you decided in your pull request, and post it in the group.
 
-- **Aakruti:** the checks in [CONTRACTS.md](CONTRACTS.md) section 5, in this order: `subtype_columns_disagree`, `survival_redacted`, `survival_zero_time`, `patient_double_count`, `her2_field_conflict` (these change verdicts), then `subtype_missing`, `a2_robustness`, `missing_values`, `leakage_columns`. Each problem gets its own id. Done when `python -m tower check --card all` shows nothing "not built yet".
-- **Madhu:** the four names in the README Team section; rehearse [DEMO.md](DEMO.md) under 3 minutes; plan the video, recorded after the 9 PM dry run, with its link in the README.
-- **Chirag:** Checkpoint 2 (ours from an empty folder using only the README, then swap with our pair and run theirs; post what broke). Then post `out/practice/findings.json` in Discord for the Repair Review Desk teams.
-- **Aravind:** review and merge PRs; after the dry run, the optional verified AI summary.
-- **Everyone:** Madhu and Chirag send GitHub usernames; own branch plus a PR; call at 2 PM; merged by 9 PM; dry run at 9 PM; freeze Saturday at 2:15 PM.
+### Start here (everyone, 10 minutes)
+
+1. Get the latest code: `git pull` in both repos (or clone, see Setup below), then activate the venv.
+2. From inside `identity-crisis-control-tower`, run `python -m tower doctor`. It must end with "Ready for the sealed envelope." If it doesn't, follow the fix it prints.
+3. Make your branch: `git checkout -b aakruti/checks`, `chirag/checks` or `madhu/docs`.
+4. Madhu and Chirag: until Aravind adds you to the repo, fork it on GitHub and open pull requests from your fork. Send Aravind your GitHub username in the group.
+5. Post "starting" in the group.
+
+### Who owns which files
+
+| Person | Creates or edits only these | Everything else |
+|---|---|---|
+| Aakruti | `tower/checks/survival.py`, `tower/checks/labels.py` | don't edit |
+| Chirag | `tower/checks/coverage.py`, `tower/checks/design.py` | don't edit |
+| Madhu | the README **Team** section and video link, `docs/DEMO.md`, `docs/USER.md` | don't edit |
+| Aravind | `app.py`, `cards/`, the rest of `tower/`, `docs/CONTRACTS.md`, the rest of the README | |
+
+Need a change in someone else's file? Post the exact change in the group instead of editing it. Don't rename checks, don't change the cards, and don't change the `Issue` fields: the cards and the screen already expect them.
+
+### How to write a check (Aakruti and Chirag)
+
+- Copy the pattern of the built checks in `tower/checks/fitness.py` and the contract in [CONTRACTS.md](CONTRACTS.md) section 2. A check is a function `fn(release, card)` with `@register("<exact name>")` above it, returning a list of `Issue`s.
+- `release.table("clinical.tsv").frame` and `release.table("survival.tsv").frame` are text tables indexed by sample id. `card_group(release, card)` gives the card's samples. For **missing values**, use `card_base_group(release, card)` instead (the group before its value filters; inside the card's own group the blanks were already dropped). Both are in `tower/cards.py`, and `BLANKS` there lists what counts as blank.
+- Status: `pass` (fine), `warn` (usable with conditions: makes the verdict Conditional), `block` (makes it Blocked). Use `material=False` for a pass that doesn't matter to the card.
+- Fill `rows` with every sample id involved, `numbers` with the counts, `fields` as `"file:column"`, and for a warn: `rule` (with the threshold), `source`, `next_step` and `evidence_needed`.
+- One Issue per problem. If one check reports several problems, give each its own id: `missing_values_ER`, `missing_values_HER2_IHC`.
+- Test as you go: `python scripts/try_check.py <name>` runs your check for every card that lists it, on release A and on the practice envelope, and flags contract problems. `python -m tower check --card <card id>` shows the card's verdict with your check in it.
+- **Expected answers on release A are given below.** If your number differs, trust the data, write down how you counted, and post it.
+
+### Aakruti: release A checks, part 1 (about 4.5 hours)
+
+These five decide verdicts, so they come first.
+
+| Check | File | Cards | What to compute | Expected on release A | Status rule |
+|---|---|---|---|---|---|
+| `survival_redacted` | survival.py | os-luminal-a, pfi-luminal-a | Samples in the card's group whose `survival.tsv` row has a value in `Redaction` | 2 in each card's group: TCGA-A7-A0DC-01, TCGA-AR-A0U1-01 (release A has 6 redacted rows, 5 of them primary tumors) | warn if any; next step: exclude them and say so |
+| `survival_zero_time` | survival.py | os-luminal-a, pfi-luminal-a | Group samples whose `<endpoint>.time` is 0 (endpoint = `card["endpoint"]["name"]`) | 11 for OS, 11 for PFI | warn if any; next step: exclude and report them |
+| `patient_double_count` | survival.py | os-luminal-a, pfi-luminal-a | Patients (`_PATIENT`, or the first 12 characters of the id) with more than one sample in the card's group | 0, so `pass` (material=False). Put in `numbers` that 135 patients have identical tumor and normal survival rows, which would count twice if normals were included | warn if any patient appears twice |
+| `subtype_columns_disagree` | labels.py | subtype-mix, os-luminal-a, pfi-luminal-a | `PAM50Call_RNAseq` vs `PAM50_mRNA_nature2012` among group samples with both filled, mapping LumA to Luminal A, LumB to Luminal B, Basal to Basal-like, Her2 to HER2-enriched, Normal to Normal-like | 52 of 508 disagree (10.2%) | warn if the share is above `card["limits"]["subtype_disagreement"]` (0.05; use 0.05 when a card has no limit); next step: name the subtype column used and report the result under both |
+| `her2_field_conflict` | labels.py | her2-positive-protein | `lab_proc_her2_neu_immunohistochemistry_receptor_status` vs `HER2_Final_Status_nature2012` among group samples with both filled | 146 of 551 differ: 105 where IHC was Equivocal and FISH decided, 29 Positive vs Negative | warn if any Positive vs Negative conflict; next step: define HER2 status from `HER2_Final_Status_nature2012` (it includes FISH) and list the 29 |
+
+Sources to cite: the TCGA Pan-Cancer Clinical Data Resource (Liu et al., Cell 2018) for the survival checks, and the TCGA BRCA paper (Nature 2012) for the subtype and HER2 columns.
+
+**Done when** `python scripts/try_check.py <name>` shows no contract problems for all five, and `python -m tower check --card os-luminal-a --allow-missing-checks` no longer lists them as not built. Open one pull request from `aakruti/checks`.
+
+### Chirag: Checkpoint 2, then release A checks, part 2 (about 4.5 hours)
+
+**1. Checkpoint 2 first (the organizers require it today, about 1 hour).**
+- Clone our repo into an empty folder, follow only the README Quick start, and run `python -m tower doctor --full`. Write down every step that broke or confused you.
+- Find our paired team in the Discord checkpoint channel, send them our repo link and the latest commit (`git log -1`), and get theirs. Run their repo from an empty folder using only their README, and send them what broke.
+- Post both lists in Discord and in our group.
+
+**2. Then four checks.**
+
+| Check | File | Cards | What to compute | Expected on release A | Status rule |
+|---|---|---|---|---|---|
+| `subtype_missing` | coverage.py | subtype-mix | Share of `card_base_group` (all primary tumors) with a blank `PAM50Call_RNAseq` | 257 of 1,101 (23.3%) | warn if above `card["limits"]["missing_fraction"]` (0.10); next step: report the subtype mix with the missing share, and don't treat the missing tumors as missing at random |
+| `missing_values` | coverage.py | er-alpha-by-er, her2-positive-protein, esr1-expression-vs-er | For each clinical field the card reads (`card["uses"]["clinical.tsv"]`), the share of `card_base_group` with a blank value. One Issue per field, id `missing_values_<field>` | ER-alpha card: ER blank for 42 of 742 (5.7%), pass. HER2 card: IHC blank for 111 of 742 (15.0%) and final status for 110 of 742 (14.8%), both warn. ESR1 card: 50 of 1,097 (4.6%), pass | warn if above `limits.missing_fraction` (0.10); a pass is `material=False` |
+| `leakage_columns` | design.py | subtype-classifier-rna | Which of the 9 subtype-derived clinical columns are in `card["features"]`: `PAM50Call_RNAseq`, `PAM50_mRNA_nature2012`, `SigClust_Intrinsic_mRNA_nature2012`, `SigClust_Unsupervised_mRNA_nature2012`, `Integrated_Clusters_no_exp__nature2012`, `Integrated_Clusters_unsup_exp__nature2012`, `Integrated_Clusters_with_PAM50__nature2012`, `RPPA_Clusters_nature2012`, `CN_Clusters_nature2012` | None (the card learns from RNA only), so pass, with the 9 listed in `numbers` as columns to keep out | block if any is a feature; next step: drop them from the features |
+| `a2_robustness` | design.py | subtype-mix | A2's subtype shares computed with each subtype column, among primary tumors with both calls (508), side by side | Luminal A 51.0% vs 44.9% (6.1 points), Luminal B 20.1 vs 24.2, Basal-like 18.1 vs 18.5, HER2-enriched 8.9 vs 11.0, Normal-like 2.0 vs 1.4 | warn if any share differs by 5 points or more (expected: warn, for Luminal A); next step: report the subtype mix under both columns, or say which one is used and why |
+
+**Done when** `python scripts/try_check.py <name>` shows no contract problems for all four. Open one pull request from `chirag/checks`.
+
+### Madhu: story, demo and outreach (about 4.5 hours)
+
+1. **README Team section** (5 minutes): replace "Members will be listed here." with our four names. Pull request from `madhu/docs`.
+2. **Discord, this morning:**
+   - Repair Review Desk handoff: the brief says Repair Review Desk teams import our `findings.json`. Post the link to `examples/practice/findings.json` (https://github.com/AravindKumar2504/identity-crisis-control-tower/blob/main/examples/practice/findings.json) in their channel and ask whether their tool imports it. Post any reply in our group; if one imports it, we say so on stage.
+   - User research (the founder's "know your user" advice): post the questions in `docs/USER.md` to the mentors and to any data engineers in the Discord. Add 2 or 3 answers to `docs/USER.md`, with each person's OK, first name and role only, and send the best line to the group for the pitch.
+   - Watch the organizers' announcements (judging, envelopes, FAQ) and post anything new in the group.
+3. **Silent judge test** (with our paired team, after Chirag's checkpoint swap): run the screen on your laptop (`streamlit run app.py`), let someone from the paired team use it for 3 minutes without help, and write down where they got stuck. Post the notes.
+4. **Rehearse** `docs/DEMO.md` aloud twice with a timer (under 3 minutes). You own its wording now: fix any line that sounds unnatural, but keep the numbers unless the screen shows different ones.
+5. **9 PM dry run:** play judge with the rubric at the top of this file. Score each line and post the three weakest points.
+6. **After the dry run:** record the demo video (screen recording with your voice, following DEMO.md, under 3 minutes), upload it (YouTube unlisted, or Google Drive with "anyone with the link"), and put the link in the README Team section.
+
+### Aravind (when awake)
+
+Invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, then the optional verified AI summary. On Saturday, submit the judging form (repo link, commit and video link) before 2:15 PM.
+
+### Merging while Aravind is asleep
+
+- Aakruti may merge a pull request that only adds files in `tower/checks/`, or only changes `docs/USER.md`, `docs/DEMO.md` or the README Team section, once its description includes the last lines of `python -m tower doctor --full` ending in "Ready for the sealed envelope."
+- Anything else waits for Aravind.
+- After a merge, everyone pulls and restarts the screen.
+
+### If you get stuck
+
+- **"No check named X is registered"**: the name in `@register("...")` must match the card's check name exactly, and the file must be in `tower/checks/`.
+- **"A check file failed to load"** (the screen's sidebar or `try_check.py` shows the error): fix that file's import error; the rest of the tool keeps working meanwhile.
+- **The screen still says "not built yet"**: pull, then restart the screen (an old screen keeps old code in memory).
+- **Your number differs from this plan**: trust the data, write down how you counted, and post it.
+- **You want a different threshold**: don't change the card; post the suggestion.
+- **You're blocked**: post in the group what you tried; meanwhile move to your next task.
+
+### Saturday (everyone)
+
+- At the Cabral Center by 10 AM (doors 9:30), laptop charged, charger with you.
+- `git pull` in both repos, then `python -m tower doctor --full`.
+- One full rehearsal around 11. Code freeze at 2:15 PM: no pushes after that.
+- Demo: Madhu speaks and Aravind drives. The sealed-envelope steps are in [DEMO.md](DEMO.md).
 
 ## The idea in one paragraph
 
@@ -74,10 +169,10 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P0 | README quick start | Aravind | **Done**; Chirag confirms it from a fresh clone |
 | P0 | Scorecard: generated releases, answer keys written by the organizers' generator, no-change release | Aravind | **Done**: `scripts/scorecard.py`, configs in `tests/releases/` |
 | P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | **Done** (Fri): 8 cards with verdicts, reasons, next steps and the evidence trail |
-| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti | Each check returns `Issue`s (`tower/checks/`, docs/CONTRACTS.md) with evidence rows and a source |
+| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti (5), Chirag (4) | Split and specified above; each check returns `Issue`s with evidence rows and a source |
 | P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): question board, review and sign-off. Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group. For ours, `python -m tower doctor` checks the whole setup in one command |
-| P2 | README polish, demo video, 3-minute pitch (script in docs/DEMO.md, user research in docs/USER.md) | Madhu | Rehearsed under 3 minutes |
+| P2 | README Team section, demo video, 3-minute pitch (docs/DEMO.md), user research and Discord outreach | Madhu | Specified above; rehearsed under 3 minutes |
 | P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
 
 ## Timeline

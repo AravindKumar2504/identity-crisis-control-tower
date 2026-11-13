@@ -121,6 +121,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `app.py` | The review screen (Streamlit) |
 | `tests/releases/` | Configs for the scorecard's test releases |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
+| `scripts/try_check.py` | Runs one check for every card that lists it, on release A and the practice envelope, and flags contract problems |
 | `docs/` | Team plan, user research, contracts and the demo script |
 | `examples/practice/` | The tool's output on the organizers' practice envelope: `findings.json` (passes their validator) and the plain-English `report.md` |
 
