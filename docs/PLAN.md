@@ -58,24 +58,31 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 
 ## Build order (cut from the bottom if time runs out)
 
-| Priority | Piece | Owner | Done when |
+| Priority | Piece | Owner | Status / done when |
 |---|---|---|---|
-| P0 | Release diff (all 5 files), A1/A2 rerun, `findings.json`, envelope command | Aravind | Practice envelope to a valid `findings.json` in under a minute |
-| P0 | README quick start | Madhu | A teammate runs it from a fresh clone |
-| P1 | Question cards + verdict rules + plain-English summary | Chirag | Each card gives its expected verdict with reasons |
-| P1 | Release A checks with sources + robustness (A2 under both subtype columns) | Aakruti | Each check returns evidence rows and a source |
+| P0 | Release diff (all 5 files), A1/A2 rerun, `findings.json`, envelope command | Aravind | **Done** (Fri 1 AM): matches the organizers' reference output on the practice envelope in about 2 s; scorecard 13/13 |
+| P0 | README quick start | Aravind | **Done**; Chirag confirms it from a fresh clone |
+| P0 | Scorecard: generated releases, answer keys written by the organizers' generator, no-change release | Aravind | **Done**: `scripts/scorecard.py`, configs in `tests/releases/` |
+| P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | Each card gives its expected verdict with reasons |
+| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti | Each check returns `Issue`s (`tower/checks/`, docs/CONTRACTS.md) with evidence rows and a source |
 | P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | A judge finishes the workflow without us talking |
-| P1 | Scorecard: generated releases with answer keys committed before running, no-change and corrupted releases | Madhu | One table: found, missed, false alarms |
-| P2 | Demo video, pitch, user research section | Madhu + all | Rehearsed under 3 minutes |
-| P2 | Optional: type a question in plain English, get an editable draft card | Chirag | Only if everything above is done |
+| P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group |
+| P2 | README polish, demo video, 3-minute pitch built on docs/USER.md | Madhu | Rehearsed under 3 minutes |
+| P2 | Optional: type a question in plain English, get an editable draft card (local model) | Chirag | Only if everything above is done |
 
 ## Timeline
 
 - **Fri morning:** everyone sets up (below) and starts their piece against the contracts in `docs/CONTRACTS.md`.
-- **Fri ~1 PM:** README quick start works from a fresh clone; send the repo and commit to our Checkpoint 2 pair.
+- **Fri ~1 PM:** Chirag confirms our README works from a fresh clone; we send our repo and commit to our Checkpoint 2 pair and run theirs.
 - **Fri 2 PM call:** demo the engine, lock the cards, the checks and the screen layout.
 - **Fri 9 PM:** everything merged; full dry run on the practice envelope plus every card.
 - **Sat morning:** fixes from the pair, video, rehearsal; freeze at 2:15 PM.
+
+## How we work
+
+- Post in the team group before starting anything new, so nobody builds the same thing twice.
+- Work on your own branch and open a pull request; Aravind merges.
+- Build against `docs/CONTRACTS.md`. If you need a new field, add it there first and tell the group.
 
 ## Setup (everyone)
 
