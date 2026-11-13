@@ -30,11 +30,11 @@ Affects: A1. A1: 5 of these samples are in A1's group of samples; A2: A2 does no
 Limitation: Identical profiles under two ids are almost never real biology; the tool cannot tell which id the measurements truly belong to.
 
 Evidence:
-- sample `TCGA-E2-A106-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-C8-A133-01 (release-A)
-- sample `TCGA-E2-A9RU-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-EW-A1PE-01 (release-A)
-- sample `TCGA-GM-A5PX-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-E9-A2JT-01 (release-A)
-- sample `TCGA-LL-A5YN-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-AR-A1AP-01 (release-A)
-- sample `TCGA-LL-A73Z-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-E9-A1N3-01 (release-A)
+- sample `TCGA-E2-A106-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-C8-A133-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own
+- sample `TCGA-E2-A9RU-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-EW-A1PE-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own
+- sample `TCGA-GM-A5PX-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-E9-A2JT-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own
+- sample `TCGA-LL-A5YN-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-AR-A1AP-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own
+- sample `TCGA-LL-A73Z-01` (protein_rppa.tsv.gz, release practice): identical to TCGA-E9-A1N3-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own
 - protein `ERALPHA` (protein_rppa.tsv.gz, release practice): the protein row A1 reads
 
 ### F3 · membership_change · severity medium · confidence high
@@ -46,11 +46,11 @@ Affects: A1. A1: 4 of these samples are in A1's group of samples; A2: A2 does no
 Limitation: The tool sees that samples are missing or new, not why; a removal can be a legitimate redaction.
 
 Evidence:
-- sample `TCGA-A8-A08J-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice
-- sample `TCGA-C8-A12Q-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice
-- sample `TCGA-C8-A26Y-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice
-- sample `TCGA-E9-A1RH-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice
-- sample `TCGA-GM-A2DH-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice
+- sample `TCGA-A8-A08J-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence
+- sample `TCGA-C8-A12Q-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence
+- sample `TCGA-C8-A26Y-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence
+- sample `TCGA-E9-A1RH-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence
+- sample `TCGA-GM-A2DH-01` (protein_rppa.tsv.gz, release release-A): present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence
 - protein `ERALPHA` (protein_rppa.tsv.gz, release practice): the protein row A1 reads
 
 ## Analyses

@@ -158,35 +158,35 @@
           "id": "TCGA-E2-A106-01",
           "release": "practice",
           "file": "protein_rppa.tsv.gz",
-          "note": "identical to TCGA-C8-A133-01 (release-A)"
+          "note": "identical to TCGA-C8-A133-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own"
         },
         {
           "kind": "sample",
           "id": "TCGA-E2-A9RU-01",
           "release": "practice",
           "file": "protein_rppa.tsv.gz",
-          "note": "identical to TCGA-EW-A1PE-01 (release-A)"
+          "note": "identical to TCGA-EW-A1PE-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own"
         },
         {
           "kind": "sample",
           "id": "TCGA-GM-A5PX-01",
           "release": "practice",
           "file": "protein_rppa.tsv.gz",
-          "note": "identical to TCGA-E9-A2JT-01 (release-A)"
+          "note": "identical to TCGA-E9-A2JT-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own"
         },
         {
           "kind": "sample",
           "id": "TCGA-LL-A5YN-01",
           "release": "practice",
           "file": "protein_rppa.tsv.gz",
-          "note": "identical to TCGA-AR-A1AP-01 (release-A)"
+          "note": "identical to TCGA-AR-A1AP-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own"
         },
         {
           "kind": "sample",
           "id": "TCGA-LL-A73Z-01",
           "release": "practice",
           "file": "protein_rppa.tsv.gz",
-          "note": "identical to TCGA-E9-A1N3-01 (release-A)"
+          "note": "identical to TCGA-E9-A1N3-01 (release-A); the official sample list says it has no protein data, so this profile can't be its own"
         },
         {
           "kind": "protein",
@@ -256,35 +256,35 @@
           "id": "TCGA-A8-A08J-01",
           "release": "release-A",
           "file": "protein_rppa.tsv.gz",
-          "note": "present in release-A, absent in practice"
+          "note": "present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence"
         },
         {
           "kind": "sample",
           "id": "TCGA-C8-A12Q-01",
           "release": "release-A",
           "file": "protein_rppa.tsv.gz",
-          "note": "present in release-A, absent in practice"
+          "note": "present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence"
         },
         {
           "kind": "sample",
           "id": "TCGA-C8-A26Y-01",
           "release": "release-A",
           "file": "protein_rppa.tsv.gz",
-          "note": "present in release-A, absent in practice"
+          "note": "present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence"
         },
         {
           "kind": "sample",
           "id": "TCGA-E9-A1RH-01",
           "release": "release-A",
           "file": "protein_rppa.tsv.gz",
-          "note": "present in release-A, absent in practice"
+          "note": "present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence"
         },
         {
           "kind": "sample",
           "id": "TCGA-GM-A2DH-01",
           "release": "release-A",
           "file": "protein_rppa.tsv.gz",
-          "note": "present in release-A, absent in practice"
+          "note": "present in release-A, absent in practice; the official sample list says it has protein data, so the list doesn't explain its absence"
         },
         {
           "kind": "protein",

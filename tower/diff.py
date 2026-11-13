@@ -36,6 +36,41 @@ def _n(k: int, word: str) -> str:
     return f"{k} {word}{'' if k == 1 else 's'}"
 
 
+# The organizers' official sample list (data/tcga-brca/sample_manifest.csv, next to release A's raw folder) says which
+# data each sample has. It is independent evidence: a copy placed on a sample the list says has no protein data can't be
+# that sample's own profile, and a lost sample the list says has data was not removed by the list.
+LAYER_COLUMNS = {"protein_rppa.tsv.gz": ("has_protein", "protein"), "copy_number_gistic.tsv.gz": ("has_copy_number", "copy number"),
+                 "mutation_gene_level.tsv.gz": ("has_mutation", "mutation"), "rna_hiseq.tsv.gz": ("has_rna", "RNA"),
+                 "survival.tsv": ("has_survival", "survival"), "clinical.tsv": ("in_clinical", "clinical")}
+_MANIFESTS: dict = {}
+
+
+def _official(rel: Release, f: str, s: str):
+    """True or False when the official sample list says whether s has data in file f; None when it doesn't say."""
+    if f not in LAYER_COLUMNS:
+        return None
+    key = str(rel.path)
+    if key not in _MANIFESTS:
+        try:
+            m = rel.path.parent / "sample_manifest.csv"
+            _MANIFESTS[key] = pd.read_csv(m, dtype=str).set_index("sample_id") if m.exists() else None
+        except Exception:      # the list is extra evidence; it must never stop the comparison
+            _MANIFESTS[key] = None
+    m, col = _MANIFESTS[key], LAYER_COLUMNS[f][0]
+    if m is None or s not in m.index or col not in m.columns:
+        return None
+    return str(m.at[s, col]).strip().lower() == "true"
+
+
+def _official_note(rel: Release, f: str, s: str, expect: bool) -> str:
+    if _official(rel, f, s) is not expect:
+        return ""
+    what = LAYER_COLUMNS[f][1]
+    if expect:
+        return f"; the official sample list says it has {what} data, so the list doesn't explain its absence"
+    return f"; the official sample list says it has no {what} data, so this profile can't be its own"
+
+
 @dataclass
 class Change:
     kind: str                        # shared-format finding kind
@@ -217,7 +252,8 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
         out.append(Change("duplicate", f, [d[0] for d in dups],
                           f"In {f}, {_n(len(dups), 'sample id')} {'carries' if len(dups) == 1 else 'carry'} a profile identical to another sample's "
                           f"profile from {_rel(a.name)}, so the same measurements are counted twice.",
-                          notes={x: dup_notes.get(x, f"identical to {y} ({_rel(a.name)})") for x, y in dups},
+                          notes={x: dup_notes.get(x, f"identical to {y} ({_rel(a.name)})") + _official_note(a, f, x, False)
+                                 for x, y in dups},
                           evidence_release={x: "B" for x, _ in dups},
                           detail={"copies": [{"new_id": x, "copied_from": y, "new_id_is_new": x in added} for x, y in dups]}))
 
@@ -258,7 +294,8 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                           f"missing from {_rel(b.name)}{ctx}{_coverage_text(cov)}"
                           f"{'; the total sample count is unchanged, so a count check would not notice' if same_count else ''}.",
                           notes={x: (f"its {_rel(a.name)} profile is gone from {_rel(b.name)}; the id now holds a copy "
-                                     "of another sample" if x in reused else f"present in {a.name}, absent in {b.name}")
+                                     "of another sample" if x in reused else f"present in {a.name}, absent in {b.name}"
+                                     + _official_note(a, f, x, True))
                                  for x in lost},
                           evidence_release={x: "A" for x in lost},
                           detail={"direction": "lost", "same_total": same_count, "coverage_lost": cov}))
@@ -353,7 +390,7 @@ def _diff_rows(f, da: pd.DataFrame, db: pd.DataFrame, a, b) -> list[Change]:
         out.append(Change("membership_change", f, lost,
                           f"In {f}, {_n(len(lost), 'sample row')} present in {_rel(a.name)} {'is' if len(lost) == 1 else 'are'} "
                           f"missing from {_rel(b.name)}{_coverage_text(cov)}.",
-                          notes={s: f"present in {a.name}, absent in {b.name}" for s in lost},
+                          notes={s: f"present in {a.name}, absent in {b.name}" + _official_note(a, f, s, True) for s in lost},
                           evidence_release={s: "A" for s in lost}, detail={"direction": "lost", "coverage_lost": cov}))
     if gained:
         out.append(Change("membership_change", f, gained,
