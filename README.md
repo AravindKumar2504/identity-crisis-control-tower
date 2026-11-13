@@ -50,6 +50,14 @@ It unseals the envelope with the organizers' `unseal.py`, compares the new relea
 
 Add `--card all` to also judge every research-question card against the envelope's release (one `readiness.json` and `.md` per card in `out/<envelope>/readiness/`).
 
+### The review screen
+
+```bash
+streamlit run app.py --server.address localhost
+```
+
+Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject), then signs off. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
+
 ### Is the data fit for a research question?
 
 ```bash
@@ -93,6 +101,8 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`) and release A data checks |
 | `cards/` | Eight research-question cards |
 | `tower/cli.py` | `compare`, `envelope`, `cards` and `check` commands |
+| `tower/review.py` | Review decisions, the sign-off, and the exports |
+| `app.py` | The review screen (Streamlit) |
 | `tests/releases/` | Configs for the scorecard's test releases |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
 | `docs/` | Team plan and user research |

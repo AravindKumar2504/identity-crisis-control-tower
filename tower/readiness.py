@@ -121,7 +121,8 @@ def summary(verdict: str, reasons: list[str], steps: list[dict]) -> str:
             "Conditional": "Conditional: usable only with the conditions below, after a person reviews them.",
             "Blocked": "Blocked: this data can't support this question as asked.",
             "Insufficient Evidence": "Insufficient Evidence: the tool can't tell from this release."}[verdict]
-    why = " ".join(reasons[:2])
+    shown = [r for r in reasons if not r.startswith("Not built yet")]
+    why = " ".join(shown[:3]) + (f" ({len(shown) - 3} more below.)" if len(shown) > 3 else "")
     nxt = f" Next step: {steps[0]['step']}" if steps and steps[0]["step"] else ""
     return f"{lead} {why}{nxt} A person must review the evidence before this data is used."
 
