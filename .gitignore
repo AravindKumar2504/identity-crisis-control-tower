@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Secrets: never commit keys or tokens
+.env
+.env.*
+*.key
+.streamlit/secrets.toml
+
+# Data stays out of the repo (fetched from the source, not committed)
+data/raw/
+releases/
+envelopes/opened/
+*.tsv
+*.tsv.gz
+
+# Local outputs and OS files
+out/
+.DS_Store
