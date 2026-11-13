@@ -6,7 +6,7 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 
 **Before you start:**
 - The screen is open (`streamlit run app.py`) with "Envelope practice" picked and the ER-alpha question showing.
-- A terminal is open in `identity-crisis-control-tower` with the venv on.
+- A terminal is open in `identity-crisis-control-tower` with the venv on, and `python -m tower doctor` ends with "Ready for the sealed envelope."
 - The browser is zoomed so all 8 question buttons are visible.
 
 ## The script (about 370 words, roughly 148 seconds of speaking plus clicks; the optional hormone therapy click adds about 14 seconds)
@@ -86,7 +86,7 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 
 ## Likely judge questions
 
-- **How do you know it's right?** We have 20 of 20 test releases. Thirteen were made with the organizers' own generator and graded against its answer keys. We built the other seven, each with its answer written first (`python scripts/scorecard.py ../oncosys-hackathon-challenge/data/tcga-brca/releases`).
+- **How do you know it's right?** We have 20 of 20 test releases. Thirteen were made with the organizers' own generator and graded against its answer keys. We built the other seven, each with its answer written first (`python scripts/scorecard.py ../oncosys-hackathon-challenge/data/tcga-brca/releases`). And you can check any finding yourself: open "Before and after" under it to see the values move, or the Analyses tab, where the organizers' own script gives the same numbers.
 - **What about a change you never planned for?** Any changed value shows up in a fingerprint. If it isn't a swap, a copy or a loss, it's reported as an edit, with every sample named.
 - **Why Blocked, not a warning?** Even with perfect files, this data can't support that question. A warning would let someone publish a Luminal A survival result from under three years of follow-up.
 - **What if I change the question?** Ask it in the sidebar form: the same written rules judge it, with the same sources and next steps.

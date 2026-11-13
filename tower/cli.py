@@ -2,6 +2,7 @@
 
   python -m tower compare <release A folder> <release B folder> [--out findings.json]
   python -m tower envelope <number> <four words> [--challenge <challenge repo folder>]
+  python -m tower doctor [--full]      is this machine ready for the sealed envelope?
 """
 from __future__ import annotations
 
@@ -157,8 +158,14 @@ def main(argv=None) -> None:
     k.add_argument("--allow-missing-checks", action="store_true",
                    help="list checks that aren't built yet as pending instead of letting them decide the verdict")
     sub.add_parser("cards", help="list the research-question cards")
+    d = sub.add_parser("doctor", help="check this machine is ready for the sealed envelope (runs the practice envelope)")
+    d.add_argument("--challenge"), d.add_argument("--full", action="store_true", help="also run the scorecard")
     args = p.parse_args(argv)
     sel = args.analyses.split(",") if getattr(args, "analyses", None) else None
+
+    if args.cmd == "doctor":
+        from .doctor import run as doctor
+        sys.exit(doctor(args.challenge, args.full))
 
     if args.cmd == "cards":
         from .cards import list_cards

@@ -28,6 +28,7 @@ from tower.checks import LOAD_ERRORS  # noqa: E402
 from tower.questions import (ENDPOINTS, FEATURES, GROUPINGS, LABELS, SUBTYPES, THERAPIES,  # noqa: E402
                              model_question, protein_question, survival_question, treatment_question)
 from tower.diff import compare  # noqa: E402
+from tower.evidence import before_after  # noqa: E402
 from tower.findings import build  # noqa: E402
 from tower.readiness import assess  # noqa: E402
 from tower.release import ROW_FILES, load_release  # noqa: E402
@@ -211,6 +212,17 @@ def reference_numbers(path: str) -> dict:
         return {x["analysis"]: x for x in json.loads(r.stdout)}
     except Exception as e:  # the comparison is a convenience; it must never break the screen
         return {"error": f"{type(e).__name__}: {e}"[:300]}
+
+
+@st.cache_data(show_spinner="Reading the values behind each finding...")
+def before_after_tables(b_path: str | None, sig: tuple = ()) -> dict:
+    """Finding id -> what release A and the new release hold for each cited sample (tower/evidence.py)."""
+    if b_path is None:
+        return {}
+    try:
+        return before_after(compare(load_release(RAW, "release-A"), load_release(b_path)))
+    except Exception:  # the table is extra evidence; it must never break the findings view
+        return {}
 
 
 @st.cache_data
@@ -484,6 +496,7 @@ with tab_changed:
                         st.caption("The total count is identical, so a count check would say nothing changed. "
                                    "Fingerprinting every sample is what catches it.")
         st.markdown('<div class="ct-sec">Every change, with every sample</div>', unsafe_allow_html=True)
+        ba_tables = before_after_tables(b_path, inputs_sig())
         for f in findings["findings"]:
             samples = [e for e in f["evidence"] if e["kind"] == "sample"]
             with st.container(border=True):
@@ -506,6 +519,14 @@ with tab_changed:
                     st.dataframe(pd.DataFrame([{"Sample": e["id"], "Release": e.get("release"), "File": e.get("file"),
                                                 "Note": e.get("note")} for e in f["evidence"]]),
                                  hide_index=True, width="stretch")
+                rows_ba = ba_tables.get(f["id"])
+                if rows_ba:
+                    with st.expander("Before and after, sample by sample"):
+                        st.dataframe(pd.DataFrame(rows_ba), hide_index=True, width="stretch")
+                        if "Now holds release A's data of" in rows_ba[0]:
+                            st.caption("A fingerprint covers everything a sample holds in this file. When a sample's "
+                                       "fingerprint in the new release equals another sample's fingerprint in release "
+                                       "A, it now holds that sample's data.")
                 for r in [r for r in repairs if f["id"] in r["addresses"]]:
                     st.markdown(f"Proposed fix **{r['id']}** · {ACTION.get(r['action'], r['action'])}: {r['justification']}")
 

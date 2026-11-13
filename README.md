@@ -40,6 +40,12 @@ python oncosys-hackathon-challenge/data/tcga-brca/fetch.py
 
 On Windows, activate with `.venv\Scripts\activate`. On a Mac with Python from python.org, if `fetch.py` fails with a certificate error, run the "Install Certificates" command that came with Python once, then retry.
 
+Then check everything in one command, from inside `identity-crisis-control-tower`. It checks Python and the packages, release A against its published checksums, and the sealed envelopes, then runs the practice envelope and compares the result with the organizers' reference output (about 3 seconds; add `--full` to also run the scorecard):
+
+```bash
+python -m tower doctor
+```
+
 ### Saturday's sealed envelope (the live test)
 
 From inside `identity-crisis-control-tower`, with the envelope number and four words the judge gives you:
@@ -58,7 +64,7 @@ Add `--card all` to also judge every research-question card against the envelope
 streamlit run app.py --server.address localhost
 ```
 
-Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
+Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples, and a before-and-after table of the values behind each one), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
 
 **Ask your own question** (sidebar): build a question from a few choices (survival by subtype, a protein between groups, a prediction model, or response to a treatment). The same rules judge it, it joins the question board, and it can be saved as a card file that `python -m tower check --card <file>` runs too. The form only writes the question down; it never decides a verdict. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
 
@@ -105,6 +111,8 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/findings.py` | Writes `findings.json`: one finding per change, every affected sample cited, severity with its reason |
 | `tower/cards.py` | Loads research-question cards and works out which samples each question studies |
 | `tower/questions.py` | Builds a card from the choices in the screen's "Ask your own question" form |
+| `tower/evidence.py` | The before-and-after values behind every cited sample |
+| `tower/doctor.py` | `python -m tower doctor`: is this machine ready for the sealed envelope? |
 | `tower/readiness.py` | The verdict (Ready, Conditional, Blocked, Insufficient Evidence), its reasons and the evidence trail |
 | `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`) and release A data checks |
 | `cards/` | Eight research-question cards |
