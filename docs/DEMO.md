@@ -1,6 +1,6 @@
 # The 3-minute demo and the sealed envelope
 
-Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
+Draft v3, Fri 11/13 (the five-page screen). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
 
 **What the judges want (the organizers, Friday 8:55 AM):** every working tool finds the same changes, so show why they matter, what the user should do next, and what the tool can't tell them. The slides add: name your user, show one result a judge can verify and one limitation they can inspect. This script covers each: the user in the hook; the measured effects and the HER2 loss (why it matters); the next steps (what to do); the "What this can't tell you" box (the limitation); and the Analyses view on the Evidence page, where the organizers' own script gives the same number (the result a judge can verify).
 
@@ -12,13 +12,13 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 - The browser is zoomed so all 8 question buttons on the Overview are visible.
 - On **Review and sign-off**, a reviewer name and role are filled in. They stay while you move between pages; a browser refresh clears them.
 
-## The script (about 390 words, roughly 156 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
+## The script (about 400 words, roughly 159 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
 
 ### 0:00 Hook (20 s) · screen: Overview, the verdict card
 
 > Our user is a research data engineer, and a new TCGA breast cancer release just arrived. Same files, same 747 protein samples. A row count sees nothing wrong. But two samples traded data, five are copies of other samples, and five real ones are gone. Cohort Control Tower catches that, then asks: is this release still fit for your research question?
 
-### 0:20 What changed (60 s) · screen: the What changed page, then Evidence, Analyses
+### 0:20 What changed (60 s) · screen: the What changed page, then Evidence (Analyses tab), then the Overview
 
 > We fingerprint every sample in every file, so any change shows up. Here are the three changes, with every affected sample named: twelve samples, and not one that didn't change. That matches the organizers' reference answer for this envelope. And the five samples that disappeared are all HER2-enriched tumors, so that subgroup shrinks while the total stays the same.
 
@@ -26,9 +26,11 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 
 > Only A1 reads those samples, so only A1 is rerun: the ER-alpha difference moves from 3.051 to 3.019. A2, the subtype mix, is left alone, because nothing it reads changed.
 >
-> So does the conclusion still hold? Yes, with room to spare: it survives 61 worst-case swaps between ER groups, and this release made one. The verdict is Conditional, and each change comes with a next step: restore the swapped profiles, exclude the copies, and ask the provider why the samples were removed.
+> So does the conclusion still hold? Yes, with room to spare: it survives 61 worst-case swaps between ER groups, and this release made one.
 >
-> *[Overview: point at "What this can't tell you" beside the next steps]* And it says what it can't tell you: which release labels the swapped samples correctly.
+> *[Overview]* The verdict is Conditional, and every problem comes with a next step: report the hospital mix, because requiring protein data changes which hospitals the tumors come from; restore the swapped profiles; and exclude the copies.
+>
+> *[point at "What this can't tell you"]* And it says what it can't tell you: which release labels the swapped samples correctly.
 
 ### 1:20 Change the question (60 s) · screen: Overview, the question board
 
@@ -103,10 +105,10 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 
 ## Check at Friday's 9 PM dry run
 
-- **PFI may change.** It shows "Ready on the checks that ran, but not fully checked yet" today, because Aakruti's survival checks aren't built. Once they land it may say Conditional (what PLAN.md expects), so re-read the board and adjust that line.
-- **Nothing "not checked yet".** Until every check a card lists is built or removed from the card, the summary says "Not checked yet" and the board says "N not checked yet". Both must be gone before judging.
+- **PFI may change.** Today the board shows "Ready · 4 pending" and the Overview says "4 checks not built yet", because Aakruti's survival checks aren't built. Once they land it should say Conditional (what PLAN.md expects), so re-read the board and adjust that line.
+- **Nothing pending.** Until every check a card lists is built or removed from the card, the board says "N pending" and the Overview says "N checks not built yet". Both must be gone before judging.
 - **Hook.** Keep the practice hook. Don't use the duplicate-patient story (TCGA-AN-A0FE and TCGA-AN-A0FG): neither sample is in any analysis, and the fact comes from outside annotations, which the rules ask us not to link.
-- **The hospital line.** On the ER-alpha question the verdict now opens with the hospital mix (0.154, over the card's 0.15 limit). That's the bias check the event page asks for: if a judge asks, say requiring protein data changes which hospitals the tumors come from, and the next step is to check the result holds with each large hospital left out.
+- **The hospital line.** On the ER-alpha question the hospital mix (0.154 on the practice envelope, over the card's 0.15 limit) is the first reason and the first next step, so the script now says it. It's the bias check the event page asks for. If a judge asks more: requiring protein data changes which hospitals the tumors come from, and the next step is to check the result holds with each large hospital left out.
 - **Timing.** Read it aloud twice with a stopwatch.
 
 ## Where the claims come from

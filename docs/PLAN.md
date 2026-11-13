@@ -1,6 +1,6 @@
 # Team plan: Identity_Crisis · Cohort Control Tower
 
-Five-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 2:15 PM ET**; be at the Cabral Center by 10 AM (doors 9:30).
+Ten-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 2:15 PM ET**; be at the Cabral Center by 10 AM (doors 9:30).
 
 ## Friday and Saturday: who does what (read this first)
 
@@ -14,6 +14,30 @@ Aravind may be asleep for a while, so everything you need is here. The remaining
 4. Madhu and Chirag: until Aravind adds you to the repo, fork it on GitHub and open pull requests from your fork. Send Aravind your GitHub username in the group.
 5. Post "starting" in the group.
 
+### What's new since this plan was first posted (Friday morning)
+
+Your assignments didn't change: the same files, checks, expected numbers and status rules. Two things were added: the organizers ruled that redacted survival rows are kept but flagged (`survival_redacted` warns; it never drops a row), and our Checkpoint 2 pair is Highlanders. Every member attends on Saturday.
+
+Aravind added the following (all pushed, so `git pull` gets it):
+
+- **The screen is now five pages**, with a menu at the top:
+  - **Overview:** the verdict with a one-line summary, four counts (changes found, changes that touch the question, decisions made, sign-off), the error budget, the question board, the next steps, and what the tool can't tell you.
+  - **What changed:** every finding with its samples and the before-and-after values.
+  - **Evidence:** three tabs: Checks and reasons, Analyses, and Evidence trail.
+  - **Review and sign-off:** the reviewer now types a name and role here, not in the sidebar.
+  - **Fool the Tower:** see below.
+  - The sidebar keeps the release picker, the sealed-envelope opener, the question picker, "Ask your own question" and Settings (the "List unbuilt checks as pending" switch).
+- **Bias check** `site_shift` (`tower/checks/bias.py`): compares the hospital (tissue source site) mix of the question's group with all primary tumors. The ER-alpha group shifts by 0.155, over its card's 0.15 limit, so that card is Conditional even on release A. The HER2 group (0.137) passes.
+- **What this can't tell you:** on the Overview, up to three things the result can't tell you, taken from the `limitation` of the checks and changes that decided the verdict.
+- **The samples this question can use:** a CSV download under "About this question" on the Overview, and `group_samples` in `readiness.json`.
+- **Error budget** (`tower/budget.py`): how many worst-case errors an answer survives before its 95% range touches zero, and how many the release made. On release A the ER-alpha answer survives 63 swaps between ER groups, 125 wrong ER labels or 146 copied profiles, and Luminal A stays the most common subtype unless 115 tumors are relabelled. The practice envelope used 5 of the 141 copied profiles (4%).
+- **Fool the Tower** (`tower/plant.py`): a judge picks errors, the organizers' `make_release.py` builds that release, and the tool looks for the errors without the answer key, then is scored against it (for example "found 9 of the 9 planted samples, with 0 false alarms"). It writes only to `out/fool/`.
+- **The official sample list as evidence** (`tower/diff.py`): a finding's notes now cite the organizers' `sample_manifest.csv` when it contradicts a copy or doesn't explain a lost sample. The samples cited and the finding kinds are unchanged.
+- **README:** a "Required output" section that links `findings.json`, as the judging page asks.
+- **DEMO.md:** names our user, says one limit aloud, adds the error budget and a Fool the Tower move for Q&A, and follows the new pages. Madhu: pull before you edit it.
+
+**Status, Friday 10:30 AM:** all nine release A checks below are still to build. Until they land, the board marks them as pending (for example "Ready · 4 pending" for PFI in Luminal A), and several verdicts in the cards table further down change when they do.
+
 ### Who owns which files
 
 | Person | Creates or edits only these | Everything else |
@@ -21,7 +45,7 @@ Aravind may be asleep for a while, so everything you need is here. The remaining
 | Aakruti | `tower/checks/survival.py`, `tower/checks/labels.py` | don't edit |
 | Chirag | `tower/checks/coverage.py`, `tower/checks/design.py` | don't edit |
 | Madhu | the README **Team** section and video link, `docs/DEMO.md`, `docs/USER.md` | don't edit |
-| Aravind | `app.py`, `cards/`, the rest of `tower/` (including `tower/checks/bias.py` and `fitness.py`), `docs/CONTRACTS.md`, the rest of the README | |
+| Aravind | `app.py`, `.streamlit/`, `cards/`, the rest of `tower/` (including `tower/checks/bias.py`, `tower/checks/fitness.py`, `tower/budget.py` and `tower/plant.py`), `docs/CONTRACTS.md`, the rest of the README | |
 
 Need a change in someone else's file? Post the exact change in the group instead of editing it. Don't rename checks, don't change the cards, and don't change the `Issue` fields: the cards and the screen already expect them.
 
@@ -32,6 +56,7 @@ Need a change in someone else's file? Post the exact change in the group instead
 - Status: `pass` (fine), `warn` (usable with conditions: makes the verdict Conditional), `block` (makes it Blocked). Use `material=False` for a pass that doesn't matter to the card.
 - Fill `rows` with every sample id involved, `numbers` with the counts, `fields` as `"file:column"`, and for a warn: `rule` (with the threshold), `source`, `next_step` and `evidence_needed`.
 - One Issue per problem. If one check reports several problems, give each its own id: `missing_values_ER`, `missing_values_HER2_IHC`.
+- Where your check shows up on the screen: every check is listed on the Evidence page (Checks and reasons). When it decides the verdict (a `warn` for Conditional, a `block` for Blocked), its `title` becomes one of the reasons, its `next_step` joins "What to do next" (the Overview shows the first three), and its `limitation` joins "What this can't tell you". Every `warn`, `block` or `unknown` also needs the reviewer's decision on the Review and sign-off page. So write all of them for someone who isn't a specialist. To see yours, restart the screen and open a card that lists your check.
 - Test as you go: `python scripts/try_check.py <name>` runs your check for every card that lists it, on release A and on the practice envelope, and flags contract problems. `python -m tower check --card <card id>` shows the card's verdict with your check in it.
 - **Expected answers on release A are given below.** If your number differs, trust the data, write down how you counted, and post it.
 
@@ -77,14 +102,14 @@ Sources to cite: the TCGA Pan-Cancer Clinical Data Resource (Liu et al., Cell 20
    - Repair Review Desk handoff: the brief says Repair Review Desk teams import our `findings.json`. Post the link to `examples/practice/findings.json` (https://github.com/AravindKumar2504/identity-crisis-control-tower/blob/main/examples/practice/findings.json) in their channel and ask whether their tool imports it. Post any reply in our group; if one imports it, we say so on stage.
    - User research (the founder's "know your user" advice): post the questions in `docs/USER.md` to the mentors and to any data engineers in the Discord. Add 2 or 3 answers to `docs/USER.md`, with each person's OK, first name and role only, and send the best line to the group for the pitch.
    - Watch the organizers' announcements (judging, envelopes, FAQ) and post anything new in the group.
-3. **Silent judge test** (with our paired team, after Chirag's checkpoint swap): run the screen on your laptop (`streamlit run app.py`), let someone from the paired team use it for 3 minutes without help, and write down where they got stuck. Post the notes.
-4. **Rehearse** `docs/DEMO.md` aloud twice with a timer (under 3 minutes). You own its wording now: fix any line that sounds unnatural, but keep the numbers unless the screen shows different ones.
+3. **Silent judge test** (with our paired team, after Chirag's checkpoint swap): run the screen on your laptop (`streamlit run app.py`), let someone from the paired team use it for 3 minutes without help, and write down where they got stuck. Watch whether they find the five pages in the top menu, and the reviewer name and role on the Review and sign-off page. Post the notes.
+4. **Rehearse** `docs/DEMO.md` aloud twice with a timer (under 3 minutes). You own its wording now: fix any line that sounds unnatural, but keep the numbers unless the screen shows different ones. The click path is now: Overview, What changed, Evidence (Analyses tab), back to the Overview, then Review and sign-off.
 5. **9 PM dry run:** play judge with the rubric at the top of this file. Score each line and post the three weakest points.
 6. **After the dry run:** record the demo video (screen recording with your voice, following DEMO.md, under 3 minutes), upload it (YouTube unlisted, or Google Drive with "anyone with the link"), and put the link in the README Team section.
 
 ### Aravind (when awake)
 
-Invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, then the optional verified AI summary. On Saturday, submit the judging form (repo link, commit and video link) before 2:15 PM.
+Done Friday morning (pushed): the five-page screen, the bias check, what the tool can't tell you, the samples download, the error budget, Fool the Tower and the official sample list notes. Still to do: invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, then the optional verified AI summary. On Saturday, clear old Fool the Tower runs before the demo, and submit the judging form (repo link, commit and video link) before 2:15 PM.
 
 ### Merging while Aravind is asleep
 
@@ -100,13 +125,16 @@ Invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, t
 - **Your number differs from this plan**: trust the data, write down how you counted, and post it.
 - **You want a different threshold**: don't change the card; post the suggestion.
 - **You're blocked**: post in the group what you tried; meanwhile move to your next task.
+- **You can't find something on the screen**: the reviewer's name and role are on the Review and sign-off page; the analyses and the evidence trail are on the Evidence page; "List unbuilt checks as pending" is under Settings in the sidebar.
+- **The release list shows "Planted release ..."**: those are Fool the Tower runs, kept in `out/fool/` (git ignores it). Delete that folder to clear them.
 
 ### What the judges want (from the organizers)
 
-- Every working tool finds the same changes, so show what happens after: why it matters, what the user should do next, and what the tool can't tell them (Discord, Friday 8:55 AM).
-- One result a judge can verify and one limitation they can inspect, and a judge can use the tool without us narrating (challenge README and slides).
+- Every working tool finds the same changes, so show what happens after: why it matters, what the user should do next, and what the tool can't tell them (Discord, Friday 8:55 AM). Where we show it: on the Overview, the verdict and its reasons, then "What to do next" beside "What this can't tell you"; on What changed, "Why it matters" under each finding.
+- One result a judge can verify and one limitation they can inspect, and a judge can use the tool without us narrating (challenge README and slides). To verify: the Analyses tab runs the organizers' own script on the same release, every finding has a before-and-after table, and Fool the Tower scores the tool on errors the judge plants. To inspect: the "What this can't tell you" box.
+- Cohort Firewall must prove which samples can answer the question (slides). Where we show it: the samples download under "About this question" on the Overview.
 - The unseen input can be a changed release or a changed research question (event page). We handle both: the envelope command and "Ask your own question".
-- The required data problems include missing values, unlikely values, unclear field meanings, bias, information that gives a model a shortcut, and missing source details (event page).
+- The required data problems include missing values, unlikely values, unclear field meanings, bias, information that gives a model a shortcut, and missing source details (event page). Ours: bias is `site_shift` (built); missing values are `missing_values` and `subtype_missing` (Chirag); unlikely values include `survival_zero_time` (Aakruti); unclear field meanings are `subtype_columns_disagree` and `her2_field_conflict` (Aakruti); shortcuts are `leakage_columns` (Chirag) and `label_derivation` (built); a missing or unreadable file gives Insufficient Evidence (`inputs_present`, built).
 - Judges are mostly industry and startup people plus a hospital researcher, so say everything plainly.
 
 ### Saturday (everyone)
@@ -115,6 +143,7 @@ Invite Madhu and Chirag, review and merge pull requests, run the 9 PM dry run, t
 - At the Cabral Center by 10 AM (doors 9:30), laptop charged, charger with you.
 - `git pull` in both repos, then `python -m tower doctor --full`.
 - One full rehearsal around 11. Code freeze at 2:15 PM: no pushes after that.
+- Before the demo, set the screen up as DEMO.md's "Before you start" says: the practice envelope, the ER-alpha question, and a reviewer name and role on the Review and sign-off page.
 - Demo: Madhu speaks and Aravind drives. The sealed-envelope steps are in [DEMO.md](DEMO.md).
 
 ## The idea in one paragraph
@@ -149,25 +178,26 @@ A research engineer gets a new release of the TCGA breast cancer data. Our tool 
 
 ## Research-question cards (first set)
 
-Fields follow the organizers' card: intended use, group studied, outcome, acceptable limitations, not acceptable, out of scope. All numbers below were measured on the frozen release A.
+Fields follow the organizers' card: intended use, group studied, outcome, acceptable limitations, not acceptable, out of scope. All numbers below were measured on the frozen release A. "Today" is what the screen shows now, with the unbuilt checks pending; the next column is what we expect once they're built. Check any card with `python -m tower check --card <id> --allow-missing-checks`.
 
-| Card | Expected verdict on release A | Why |
-|---|---|---|
-| ER-alpha protein, ER-positive vs ER-negative primary tumors (A1) | Ready (Conditional when a release changes its samples) | Names every changed sample, shows before and after, says whether the conclusion still holds |
-| PAM50 subtype mix of primary tumors (A2) | Conditional | The two subtype columns disagree on 52 of 508 tumors (10.2%); 257 primary tumors (23%) have no subtype |
-| Overall survival by subtype, Luminal A focus | Blocked | Median follow-up 31.3 months (reverse Kaplan-Meier) with 151 deaths among 1,096 primary tumors, and 35.4 months for Luminal A; the TCGA survival resource (Liu et al., Cell 2018) advises against overall survival for Luminal A; 13 tumors with zero follow-up; 5 redacted tumors still carry survival values; 135 patients have duplicated survival rows (tumor + normal) |
-| Same question with progression-free interval, one row per patient | Conditional | PFI is recommended without reservation (145 events); the remaining caveats are listed |
-| Train a subtype classifier from RNA | Blocked | The subtype label was computed from RNA (circular); 9 columns leak the label; the envelope has no RNA |
-| Response to hormone therapy by ER-alpha level | Blocked | The release has no treatment or response data |
-| HER2-positive group | Conditional | HER2 IHC and final status differ on 175 of 669 (106 equivocal results resolved by FISH, 38 real conflicts); IHC missing for 16.5% |
-| Any question whose input file is missing or fails its fingerprint | Insufficient Evidence | The data's origin can't be confirmed |
+| Card (id) | Today on release A | Once every check is built | Why |
+|---|---|---|---|
+| ER-alpha protein, ER-positive vs ER-negative primary tumors, A1 (`er-alpha-by-er`) | Conditional, 1 pending | Conditional | The group's hospital mix shifts by 0.155, over the card's 0.15 limit (`site_shift`); ER is blank for only 5.7%. On a new release it also names every changed sample, shows before and after, and says whether the conclusion still holds |
+| ESR1 gene expression vs clinical ER status (`esr1-expression-vs-er`) | Ready, 1 pending | Ready on release A; Insufficient Evidence on an envelope | ER is blank for 4.6% (passes); envelopes have no RNA |
+| PAM50 subtype mix of primary tumors, A2 (`subtype-mix`) | Ready, 3 pending | Conditional | The two subtype columns disagree on 52 of 508 tumors (10.2%); 257 primary tumors (23%) have no subtype; Luminal A is 51.0% under one column and 44.9% under the other |
+| Overall survival by subtype, Luminal A focus (`os-luminal-a`) | Blocked, 4 pending | Blocked | Median follow-up 31.3 months (reverse Kaplan-Meier) with 151 deaths among 1,096 primary tumors, and 35.4 months for Luminal A; the TCGA survival resource (Liu et al., Cell 2018) advises against overall survival for Luminal A; 13 tumors with zero follow-up; 5 redacted tumors still carry survival values; 135 patients have duplicated survival rows (tumor + normal) |
+| Same question with progression-free interval, one row per patient (`pfi-luminal-a`) | Ready, 4 pending | Conditional | PFI is recommended without reservation (145 events); in the group, 2 redacted rows and 11 with zero follow-up, and the subtype columns disagree |
+| Train a subtype classifier from RNA (`subtype-classifier-rna`) | Blocked, 1 pending | Blocked | The subtype label was computed from RNA (circular); 9 columns leak the label; the envelope has no RNA |
+| Response to hormone therapy by ER-alpha level (`hormone-therapy-response`) | Blocked | Blocked | The release has no treatment or response data |
+| HER2 protein in HER2-positive vs HER2-negative tumors (`her2-positive-protein`) | Ready, 2 pending | Conditional | In the group, HER2 IHC and the final status differ on 146 of 551 (105 equivocal results resolved by FISH, 29 positive vs negative); IHC is blank for 15.0% and the final status for 14.8%. Its hospital mix (0.137) passes |
+| Any question whose input file is missing or fails its fingerprint | Insufficient Evidence | Insufficient Evidence | The data's origin can't be confirmed |
 
 ## Problems already in release A (verified, for the readiness report)
 
 - One person under two IDs: TCGA-AN-A0FE and TCGA-AN-A0FG (TCGA redaction 2010, "Identical subject"); both still in `clinical.tsv`. The tool doesn't report it: neither sample is in any analysis, and the fact comes from outside annotations (RULES.md: don't link records to outside sources about individuals).
 - Two subtype columns (`PAM50Call_RNAseq`, `PAM50_mRNA_nature2012`) disagree on 52 of 508 tumors. The two ER columns agree on all 780 (do **not** report an ER conflict).
 - Survival: 6 rows marked Redacted (5 tumors still carry values), 13 tumors with zero follow-up, 135 patients with identical tumor and normal survival rows, OS events disagree with `OS_event_nature2012` for 28 of 816.
-- Requiring protein data shifts the hospital (tissue source site) mix: total variation distance 0.137.
+- Requiring protein data shifts the hospital (tissue source site) mix: total variation distance 0.155 for the ER-alpha card's group (over its 0.15 limit, so `site_shift` warns) and 0.137 for the HER2 card's group (passes).
 - 142 patients have more than one sample; 7 have both a primary and a metastatic sample; 66 samples have more than one diagnostic slide; 24 normal samples appear only in the slide manifest.
 - 12 male patients; 9 ages capped at 90; one near-identical protein pair from two patients (TCGA-A2-A0SV and TCGA-A2-A0SW, r = 0.99).
 
@@ -179,11 +209,15 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P0 | README quick start | Aravind | **Done**; Chirag confirms it from a fresh clone |
 | P0 | Scorecard: generated releases, answer keys written by the organizers' generator, no-change release | Aravind | **Done**: `scripts/scorecard.py`, configs in `tests/releases/` |
 | P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | **Done** (Fri): 8 cards with verdicts, reasons, next steps and the evidence trail |
-| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti (5), Chirag (4) | Split and specified above; each check returns `Issue`s with evidence rows and a source |
-| P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): question board, review and sign-off. Still to test at the dry run: a judge finishes it without us talking |
+| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti (5), Chirag (4) | To build (Fri): split and specified above; each check returns `Issue`s with evidence rows and a source |
+| P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): five pages with a top menu (Overview, What changed, Evidence, Review and sign-off, Fool the Tower). Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group. For ours, `python -m tower doctor` checks the whole setup in one command |
+| P1 | Bias check (`site_shift`), "What this can't tell you", the samples this question can use | Aravind | **Done** (Fri) |
 | P2 | README Team section, demo video, 3-minute pitch (docs/DEMO.md), user research and Discord outreach | Madhu | Specified above; rehearsed under 3 minutes |
 | P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
+| P2 | Error budget and Fool the Tower | Aravind | **Done** (Fri) |
+| P2 | The official sample list cited in findings notes | Aravind | **Done** (Fri) |
+| P2 | Verified AI summary (restates only computed facts, with links to them) | Aravind | After the 9 PM dry run |
 
 ## Timeline
 
@@ -217,11 +251,11 @@ Clone this repo **next to** the challenge repo (same parent folder).
 
 The full script, with timings, clicks and the envelope steps, is in [DEMO.md](DEMO.md).
 
-1. Hook (20 s): same files, same 747 protein samples, but two swapped, five copied and five gone. A row count sees nothing.
-2. New release (60 s): every changed sample named; the lost ones are all HER2-enriched; only A1 rerun, A2 left alone; the conclusion holds, with the numbers.
-3. Change the question (60 s): overall survival in Luminal A is Blocked, with the source; switch to progression-free interval and the block is gone.
-4. Review (30 s): a person approves or rejects each fix and signs off; the evidence trail exports with it.
-5. Close (10 s): the scorecard.
+1. Hook (20 s, Overview): same files, same 747 protein samples, but two swapped, five copied and five gone. A row count sees nothing.
+2. New release (60 s, What changed, then Evidence's Analyses tab, then back to the Overview): every changed sample named; the lost ones are all HER2-enriched; only A1 rerun, A2 left alone; the conclusion holds and survives 61 worst-case swaps; the next steps and what the tool can't tell you.
+3. Change the question (60 s, the question board on the Overview): overall survival in Luminal A is Blocked, with the source; switch to progression-free interval and the block is gone.
+4. Review (30 s, Review and sign-off): a person approves or rejects each fix and signs off; the evidence trail exports with it.
+5. Close (10 s): the scorecard, then "hand us the envelope, plant your own errors, or ask your own research question".
 
 ## Rules we never break
 

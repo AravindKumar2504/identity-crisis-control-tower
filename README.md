@@ -15,8 +15,9 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 - Scorecard: 20 of 20 test releases pass. 13 are built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). 7 more test changes their generator can't make: edited values, a removed protein row, edited survival outcomes, a renamed sample id, and three damaged releases (a truncated file, a comma-separated file and an empty file), which are refused with Insufficient Evidence instead of crashing. Their answers are written into `EXPECTED.json` when each release is built, before the tool runs. Every planted sample found, nothing extra reported, about a second per release. We also built 481 releases with the organizers' generator at random settings: 476 match its answer keys exactly. In four of the other five, the answer key lists a change that left no trace in the data (a copy that a later change deleted, or a value changed and then changed back); the fifth is a copy whose original was later removed, which the tool reports as a rename.
 - Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, overall survival in Luminal A is Blocked while progression-free interval in the same tumors is not; ESR1 expression vs ER status is Insufficient Evidence on the practice envelope because envelopes have no RNA; and ER-alpha by ER status is Conditional even on release A, because requiring protein data shifts the group's hospital mix by 0.155, over the card's 0.15 limit).
 - Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, so severity rests on a number (on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium). For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
-- The review and sign-off screen works (`streamlit run app.py`). A question board shows the verdict for every research question on the same release, and the Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
-- Next: release A data checks (in progress). Plan: [docs/PLAN.md](docs/PLAN.md).
+- The review screen works (`streamlit run app.py`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
+- Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
+- Next: nine release A data checks (Aakruti and Chirag), the 9 PM dry run and the demo video. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
 
@@ -126,13 +127,15 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/plant.py` | Fool the Tower: plants errors with the organizers' generator and scores the tool |
 | `tower/doctor.py` | `python -m tower doctor`: is this machine ready for the sealed envelope? |
 | `tower/readiness.py` | The verdict (Ready, Conditional, Blocked, Insufficient Evidence), its reasons and the evidence trail |
-| `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`) and release A data checks |
+| `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`), the bias check (`bias.py`) and release A data checks |
 | `cards/` | Eight research-question cards |
 | `tower/cli.py` | `compare`, `envelope`, `cards` and `check` commands |
 | `tower/review.py` | Review decisions, the sign-off, and the exports |
-| `app.py` | The review screen (Streamlit) |
+| `app.py` | The review screen (Streamlit): Overview, What changed, Evidence, Review and sign-off, Fool the Tower |
+| `.streamlit/config.toml` | The screen's light theme, and serving it on this machine only |
 | `tests/releases/` | Configs for the scorecard's test releases |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
+| `scripts/make_adversarial.py` | Builds the 7 test releases the organizers' generator can't make, each with its answer written first |
 | `scripts/try_check.py` | Runs one check for every card that lists it, on release A and the practice envelope, and flags contract problems |
 | `docs/` | Team plan, user research, contracts and the demo script |
 | `examples/practice/` | The tool's output on the organizers' practice envelope: `findings.json` (passes their validator) and the plain-English `report.md` |
