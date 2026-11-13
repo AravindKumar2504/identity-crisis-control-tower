@@ -84,7 +84,6 @@ st.markdown("""
 .chip-unknown {background:#E7EDFB; color:#1A3580; border-color:#BAC9F1;}
 .chip-muted {background:#F1F4F6; color:#43535F; border-color:#E2E8EE;}
 .chip-teal {background:#E3F4F1; color:#0B5C55; border-color:#B4DFD8;}
-.ct-steps {display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:10px; margin:14px 0 6px;}
 .ct-step {border:1px solid #E2E8EE; border-radius:14px; padding:10px 14px; background:#FFFFFF;}
 .ct-step .k {font-size:.68rem; color:#556676; text-transform:uppercase; letter-spacing:.07em; font-weight:800;}
 .ct-step .v {font-size:1.2rem; font-weight:800; color:#132A3A; margin-top:3px;}
@@ -102,12 +101,19 @@ st.markdown("""
 .ct-cant .it {margin:3px 0;}
 .ct-budget {margin-top:10px; padding:8px 12px; border-radius:10px; background:#ECFDF5; border:1px solid #A7F3D0;
             font-size:.86rem; color:#065F46;}
-.ct-guide {display:flex; gap:10px; flex-wrap:wrap; margin:-.3rem 0 1rem;}
-.ct-guide .g {display:flex; align-items:center; gap:8px; background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px;
-              padding:4px 14px 4px 4px; font-size:.82rem; color:#33495A;}
-.ct-guide .n {width:22px; height:22px; border-radius:50%; background:#0F766E; color:#FFFFFF; display:inline-flex;
-              align-items:center; justify-content:center; font-weight:800; font-size:.74rem;}
-@media (max-width: 900px) {.ct-steps {grid-template-columns:repeat(2, minmax(0, 1fr));}}
+.ct-side {font-size:.7rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#9FB3C3; margin:16px 0 2px;}
+.ct-ctx {display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:-.35rem 0 1.1rem;}
+.ct-ctx span {background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px; padding:3px 12px; font-size:.8rem; color:#33495A;}
+.ct-ctx span.v {background:var(--bg); border-color:var(--c); color:var(--c); font-weight:800;}
+.ct-kpis {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; height:100%;}
+.ct-kpis .ct-step {display:flex; flex-direction:column; justify-content:center;}
+.ct-step .k {overflow-wrap:normal; word-break:normal;}
+@media (max-width: 1100px) {.ct-kpis {grid-template-columns:1fr;}}
+.ct-todo {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:10px 14px; margin-top:10px;
+          font-size:.88rem; color:#21384A;}
+.ct-todo .it {display:flex; gap:10px; align-items:flex-start; margin:5px 0; line-height:1.45;}
+.ct-todo .n {flex:none; width:20px; height:20px; border-radius:50%; background:#0F766E; color:#FFFFFF; display:inline-flex;
+             align-items:center; justify-content:center; font-weight:800; font-size:.72rem; margin-top:1px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -263,6 +269,7 @@ FOOL_LABELS = {"ER status": ("breast_carcinoma_estrogen_receptor_status", ["Nega
 
 def open_release(label: str) -> None:
     st.session_state["pending_release"] = label
+    st.session_state["goto_overview"] = True
 
 
 def pick(title: str) -> None:
@@ -270,10 +277,15 @@ def pick(title: str) -> None:
 
 
 # ------------------------------------------------------------------------------------------------ sidebar
+def keep(dst: str, src: str) -> None:
+    """Copy a widget's value to a key that outlives the page it's drawn on (the reviewer's name and role)."""
+    st.session_state[dst] = st.session_state[src]
+
+
 with st.sidebar:
     st.markdown("### 🗼 Cohort Control Tower")
     st.caption("Team Identity_Crisis · OncoSys Cancer AI Lab")
-    st.markdown("**1 · The data**")
+    st.markdown('<div class="ct-side">Release</div>', unsafe_allow_html=True)
     opts = release_options()
     labels = list(opts)
     if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
@@ -294,7 +306,7 @@ with st.sidebar:
                     st.session_state["pending_release"] = f"Envelope {name}"
                     st.rerun()
 
-    st.markdown("**2 · The research question**")
+    st.markdown('<div class="ct-side">Research question</div>', unsafe_allow_html=True)
     cards = list_cards() + st.session_state.get("custom_cards", [])
     titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
@@ -326,13 +338,12 @@ with st.sidebar:
         if card["id"].startswith("custom-"):
             st.download_button("⬇ Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
                                f"{card['id']}.yaml")
-
-    st.markdown("**3 · Reviewer**")
-    reviewer = st.text_input("Your name")
-    role = st.text_input("Your role", placeholder="e.g. research data engineer")
-    allow_missing = st.toggle("List unbuilt checks as pending", value=True,
-                              help="Off: an unbuilt check counts as 'can't tell', the strict reading.")
+    with st.expander("Settings"):
+        allow_missing = st.toggle("List unbuilt checks as pending", value=True,
+                                  help="Off: an unbuilt check counts as 'can't tell', the strict reading.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
+reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
+role = st.session_state.get("reviewer_role", "")
 
 # ------------------------------------------------------------------------------------------------ analysis
 b_path = opts[release_label]
@@ -347,14 +358,14 @@ ctx = f"{release_label}|{card['id']}"
 state = st.session_state.setdefault("review", {}).setdefault(ctx, {"repairs": {}, "issues": {}, "signed": None})
 first_seen = st.session_state.setdefault("decided_at", {})
 dkey, nkey = f"{ctx}|signoff", f"{ctx}|signoff_note"
-# Streamlit forgets a widget's value while the widget isn't drawn (for example while another question is open), so
-# every review widget's value for this question is also kept here and put back when the question is opened again.
+# Streamlit forgets a widget's value while the widget isn't drawn (on another page, or while another question is
+# open), and the browser forgets it too. So every review widget's value for this question is kept here and set
+# again on every run: the counts are right on every page, and the Review page always shows what was decided.
 kept = state.setdefault("widgets", {})
-for k, v in kept.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
 for k in [k for k in list(st.session_state.keys()) if isinstance(k, str) and k.startswith(ctx + "|")]:
     kept[k] = st.session_state[k]
+for k, v in kept.items():
+    st.session_state[k] = v
 st.session_state.setdefault(dkey, DEFAULT_SIGNOFF[ready["verdict"]])
 if LOAD_ERRORS:
     st.sidebar.warning("A check file failed to load, so its checks show as not built: "
@@ -389,81 +400,110 @@ if state["signed"] and state.get("signed_inputs") != signature:
     state.pop("flash", None)
 touching = {t["finding"] for t in ready["release_changes"]}
 
-# ------------------------------------------------------------------------------------------------ header + hero
+# ------------------------------------------------------------------------------------------------ header (every page)
+icon, colour, tint, vchip = VERDICT[ready["verdict"]]
+where = "release A on its own" if b_path is None else f"{release_label}, compared with release A"
 st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
             '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
             '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
-st.markdown('<div class="ct-guide">'
-            '<span class="g"><span class="n">1</span>Pick a new release in the sidebar, or open a sealed envelope</span>'
-            '<span class="g"><span class="n">2</span>Read the verdict and why</span>'
-            '<span class="g"><span class="n">3</span>Switch the question below and watch the verdict change</span>'
-            '<span class="g"><span class="n">4</span>Review each fix and sign off</span></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="ct-ctx"><span><b>Release</b> &nbsp;{esc(where)}</span>'
+            f'<span><b>Question</b> &nbsp;{esc(card.get("short_title") or card["title"])}</span>'
+            f'<span class="v" style="--c:{colour}; --bg:{tint}">{icon} {esc(ready["verdict"])}</span></div>',
+            unsafe_allow_html=True)
 
-icon, colour, tint, vchip = VERDICT[ready["verdict"]]
-where = "release A" if b_path is None else f"{release_label}, compared with release A"
-left, right = st.columns([3, 2], gap="medium")
-left.markdown(f"""
+
+# ------------------------------------------------------------------------------------------------ overview
+def headline() -> str:
+    """One sentence a judge can read at a glance; the full reasoning sits one click away."""
+    req = ready["review"]["required"]
+    problems = [i for i in req if not i.startswith("F")]
+    if ready["verdict"] == "Conditional":
+        parts = ([plural(len(touching), "release change")] if touching else []) + \
+                ([plural(len(problems), "data problem")] if problems else [])
+        return f"Usable after a person reviews {' and '.join(parts) or 'the items below'} that touch this question."
+    if ready["verdict"] == "Ready":
+        pending = ready.get("pending_checks") or []
+        return "Nothing material found in the checks that ran." + (
+            f" {plural(len(pending), 'check')} not built yet." if pending else "")
+    return ready["reasons"][0] if ready["reasons"] else ""
+
+
+def page_overview() -> None:
+    n_changes = len(findings["findings"]) if findings else 0
+    signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
+    left, right = st.columns([3, 2], gap="medium")
+    left.markdown(f"""
 <div class="ct-hero" style="--c:{colour}; --bg:{tint}">
   <div class="ct-eyebrow">Verdict for this question</div>
   <div class="ct-verdict">{icon} {esc(ready['verdict'])}</div>
   <div class="ct-q">{esc(card['title'])}</div>
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
-  <div class="ct-sum">{esc(ready['summary'])}</div>
+  <div class="ct-sum">{esc(headline())}</div>
 </div>""", unsafe_allow_html=True)
-if ready.get("error_budget"):
-    left.markdown(f'<div class="ct-budget"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
-                  unsafe_allow_html=True)
-if ready.get("cannot_tell"):
-    left.markdown('<div class="ct-cant"><div class="ct-eyebrow">What this can\'t tell you</div>'
-                  + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"]) + "</div>",
-                  unsafe_allow_html=True)
-right.markdown(f"""
+    kpis = [
+        ("Changes found", f"{n_changes}" if findings else "n/a", "vs release A" if findings else "pick a new release",
+         "warn" if n_changes else "done"),
+        ("Touch this question", f"{len(touching)}", "need a person's review" if touching else "none",
+         "warn" if touching else "done"),
+        ("Decisions", f"{decided} of {total}", "fixes and problems decided", "done" if decided == total else "warn"),
+        ("Sign-off", "Signed" if signed_by else "Pending", f"by {signed_by}" if signed_by else "on the Review page",
+         "done" if signed_by else "todo"),
+    ]
+    right.markdown('<div class="ct-kpis">' + "".join(
+        f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
+        for k, v, sub, s in kpis) + "</div>", unsafe_allow_html=True)
+    if ready.get("error_budget"):
+        st.markdown(f'<div class="ct-budget"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
+                    unsafe_allow_html=True)
+
+    st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
+                unsafe_allow_html=True)
+    qcols = st.columns(4)
+    for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
+        with qcols[i % 4]:
+            st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
+                      type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"], width="stretch")
+            st.caption(q["verdict"] + (f" · {q['pending']} pending" if q.get("pending") else "")
+                       + (" · open" if q["id"] == card["id"] else ""))
+
+    nxt, cant = st.columns(2, gap="medium")
+    with nxt:
+        st.markdown('<div class="ct-sec">What to do next</div>', unsafe_allow_html=True)
+        if ready["next_steps"]:
+            st.markdown('<div class="ct-todo">' + "".join(
+                f'<div class="it"><span class="n">{i}</span><span>{esc(s["step"])}</span></div>'
+                for i, s in enumerate(ready["next_steps"][:3], 1)) + "</div>", unsafe_allow_html=True)
+        else:
+            st.caption("Nothing to fix for this question.")
+        if len(ready["next_steps"]) > 3:
+            st.caption(f"{len(ready['next_steps']) - 3} more, with the evidence that would change each, on the Evidence page.")
+    with cant:
+        st.markdown('<div class="ct-sec">What this can\'t tell you</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ct-cant">' + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"])
+                    + "</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="ct-sec">More about this result</div>', unsafe_allow_html=True)
+    with st.expander("The full reasoning"):
+        st.markdown(ready["summary"])
+        for r in ready["reasons"]:
+            st.markdown(f"- {r}")
+    with st.expander("About this question"):
+        st.markdown(f"""
 <div class="ct-qcard">
   <div class="row"><span class="lab">Intended use</span>{esc(card['intended_use'])}</div>
   <div class="row"><span class="lab">Group studied</span>{esc(card['group_studied'])}</div>
   <div class="row"><span class="lab">Outcome</span>{esc(card['outcome'])}</div>
   <div class="row"><span class="lab">Acceptable limitations</span>{esc(card['acceptable_limitations'])}</div>
 </div>""", unsafe_allow_html=True)
-if ready.get("group_samples"):
-    right.download_button(f"⬇ The {len(ready['group_samples'])} samples this question can use (CSV)",
-                          "sample_id,patient_id\n" + "".join(f"{s},{s[:12]}\n" for s in ready["group_samples"]),
-                          f"{card['id']}-samples.csv", help="The samples in this release that can answer the question, "
-                          "after the question's own filters: which samples the verdict is about.")
+        if ready.get("group_samples"):
+            st.download_button(f"⬇ The {len(ready['group_samples'])} samples this question can use (CSV)",
+                               "sample_id,patient_id\n" + "".join(f"{s},{s[:12]}\n" for s in ready["group_samples"]),
+                               f"{card['id']}-samples.csv", help="The samples in this release that can answer the "
+                               "question, after the question's own filters: which samples the verdict is about.")
 
-n_files = len(ready["release"]["files"])
-n_changes = len(findings["findings"]) if findings else 0
-signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
-steps = [
-    ("Files fingerprinted", f"{n_files}", "every file this question reads", "done"),
-    ("Changes found", f"{n_changes}" if findings else "n/a", "vs release A" if findings else "no new release picked",
-     "warn" if n_changes else "done"),
-    ("Touch this question", f"{len(touching)}", "need a person's review" if touching else "none",
-     "warn" if touching else "done"),
-    ("Decisions", f"{decided} of {total}", "fixes and problems decided",
-     "done" if decided == total else "warn"),
-    ("Sign-off", "Signed" if signed_by else "Pending", f"by {signed_by}" if signed_by else "a person must sign off",
-     "done" if signed_by else "todo"),
-]
-st.markdown('<div class="ct-steps">' + "".join(
-    f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
-    for k, v, sub, s in steps) + "</div>", unsafe_allow_html=True)
-
-st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
-            unsafe_allow_html=True)
-qcols = st.columns(4)
-for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
-    with qcols[i % 4]:
-        st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
-                  type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"])
-        st.caption(q["verdict"] + (f" · {q['pending']} not checked yet" if q.get("pending") else "")
-                   + (" · open" if q["id"] == card["id"] else ""))
-
-tab_why, tab_changed, tab_analyses, tab_trail, tab_review, tab_fool = st.tabs(
-    ["🧭 Why this verdict", "🔀 What changed", "📊 Analyses", "🧬 Evidence trail", "✍️ Review and sign-off",
-     "🎯 Fool the Tower"])
 
 # ------------------------------------------------------------------------------------------------ why
-with tab_why:
+def render_checks() -> None:
     st.markdown('<div class="ct-sec">Reasons</div>', unsafe_allow_html=True)
     for r in ready["reasons"]:
         st.markdown(f'<div class="ct-reason">{esc(r)}</div>', unsafe_allow_html=True)
@@ -495,16 +535,19 @@ with tab_why:
                         st.markdown(f'<div class="ct-mono">{esc(", ".join(x["rows"]))}</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------------------------ what changed
-with tab_changed:
+def page_changed() -> None:
     if not findings:
         st.info("Pick a new release in the sidebar to see what changed against release A.")
     else:
         rv = VERDICT[findings["verdict"]]
-        st.markdown(chip(f"{rv[0]} Release check: {findings['verdict']}", rv[3]) + f'<span class="ct-small">'
-                    f'{esc(findings["verdict_reason"])}</span>', unsafe_allow_html=True)
-        for n in findings.get("notes", []):
-            st.caption(n)
-        st.download_button("⬇ Release notes (plain English)", plain_report(findings), "release_notes.md")
+        with st.container(border=True):
+            c1, c2 = st.columns([4, 1], vertical_alignment="center")
+            c1.markdown('<div class="ct-eyebrow">Release check</div>' + chip(f"{rv[0]} {findings['verdict']}", rv[3])
+                        + f'<span class="ct-small">{esc(findings["verdict_reason"])}</span>', unsafe_allow_html=True)
+            for n in findings.get("notes", []):
+                c1.caption(n)
+            c2.download_button("⬇ Release notes", plain_report(findings), "release_notes.md", width="stretch",
+                               help="Every finding in plain English, as Markdown.")
         if members:
             st.markdown('<div class="ct-sec">Same count, different members</div>', unsafe_allow_html=True)
             colors = {"swapped": "#B45309", "copied in": "#B91C1C", "removed": "#6B7280", "new": "#1D4ED8",
@@ -514,9 +557,10 @@ with tab_changed:
                 with st.container(border=True):
                     st.markdown(f'<span class="ct-mono"><b>{esc(m["file"])}</b></span>', unsafe_allow_html=True)
                     c1, c2, c3, c4 = st.columns([1, 1, 1, 3])
-                    c1.metric("Samples in release A", m["n_a"])
-                    c2.metric("Samples in new release", m["n_b"], delta=(m["n_b"] - m["n_a"]) or None)
-                    c3.metric("Samples that changed", len(changed))
+                    c1.metric("Release A", m["n_a"], help="Samples in this file in release A")
+                    c2.metric("New release", m["n_b"], delta=(m["n_b"] - m["n_a"]) or None,
+                              help="Samples in this file in the new release")
+                    c3.metric("Changed samples", len(changed))
                     rows = [{"what": w, "n": len(m[k])} for k, w in [("swapped", "swapped"), ("copied", "copied in"),
                                                                      ("lost", "removed"), ("gained", "new"),
                                                                      ("relabeled", "relabelled or edited")] if m[k]]
@@ -588,7 +632,7 @@ def a2_chart(before: dict, after: dict | None):
         tooltip=["subtype", "release", "percent"]).properties(height=240))
 
 
-with tab_analyses:
+def render_analyses() -> None:
     items = []
     if findings:
         items = [(a["id"], a["title"], a["status"], a.get("reason", ""), a.get("before") or {}, a.get("after"))
@@ -723,7 +767,7 @@ def blast_radius() -> str:
     return "\n".join(g)
 
 
-with tab_trail:
+def render_trail() -> None:
     st.markdown('<div class="ct-sec">Blast radius: change → file → analysis → this question</div>', unsafe_allow_html=True)
     st.graphviz_chart(blast_radius())
     st.markdown('<div class="ct-sec">Every conclusion and what it rests on</div>', unsafe_allow_html=True)
@@ -734,9 +778,14 @@ with tab_trail:
     st.caption("Fields this question reads: " + ", ".join(ready["fields_read"]))
 
 # ------------------------------------------------------------------------------------------------ review
-with tab_review:
+def page_review() -> None:
+    st.markdown('<div class="ct-sec">Reviewer</div>', unsafe_allow_html=True)
+    r1, r2 = st.columns(2)
+    r1.text_input("Your name", value=reviewer, key="_reviewer_in", on_change=keep, args=("reviewer", "_reviewer_in"))
+    r2.text_input("Your role", value=role, key="_role_in", placeholder="e.g. research data engineer",
+                  on_change=keep, args=("reviewer_role", "_role_in"))
     if not (reviewer and role):
-        st.warning("Enter your name and role in the sidebar to review.")
+        st.warning("Enter your name and role above to review.")
     if state.pop("withdrawn", False):
         st.warning("Something changed after the sign-off (a decision, the verdict or the reviewer), so the sign-off "
                    "was withdrawn. Check the decisions and sign off again.")
@@ -750,11 +799,12 @@ with tab_review:
                         + chip(f"for {', '.join(r['addresses'])}", "chip-muted")
                         + chip(plural(len(r["targets"]), "target"), "chip-muted"), unsafe_allow_html=True)
             st.markdown(r["justification"])
-            st.segmented_control(f"Decision for {r['id']}", REPAIR_CHOICES, key=f"{ctx}|rep|{r['id']}",
+            row = st.container(horizontal=True, vertical_alignment="bottom")     # side by side; wraps when narrow
+            row.segmented_control(f"Decision for {r['id']}", REPAIR_CHOICES, key=f"{ctx}|rep|{r['id']}",
                                  disabled=not (reviewer and role),
                                  format_func=lambda o: {"approve": "✅ approve", "reject": "⛔ reject",
                                                         "request_more_evidence": "❓ ask for more"}[o])
-            st.text_input(f"Reason for {r['id']}", key=f"{ctx}|repr|{r['id']}", disabled=not (reviewer and role),
+            row.text_input(f"Reason for {r['id']}", key=f"{ctx}|repr|{r['id']}", disabled=not (reviewer and role),
                           placeholder="Why (needed to reject or ask for more)")
 
     st.markdown('<div class="ct-sec">Problems for this question</div>', unsafe_allow_html=True)
@@ -770,9 +820,11 @@ with tab_review:
             st.markdown(chip(STATUS[x["status"]][0], STATUS[x["status"]][1]) + f"<b>{esc(iid)}</b>", unsafe_allow_html=True)
             for y in xs:
                 st.markdown(y["title"])
-            st.segmented_control(f"Do you agree? ({iid})", ISSUE_CHOICES, key=f"{ctx}|iss|{iid}",
+            row = st.container(horizontal=True, vertical_alignment="bottom")
+            row.segmented_control(f"Do you agree? ({iid})", ISSUE_CHOICES, key=f"{ctx}|iss|{iid}",
                                  disabled=not (reviewer and role))
-            st.text_input(f"Reason for {iid}", key=f"{ctx}|issr|{iid}", disabled=not (reviewer and role))
+            row.text_input(f"Reason for {iid}", key=f"{ctx}|issr|{iid}", disabled=not (reviewer and role),
+                          placeholder="Why (needed to disagree or ask for more)")
 
     st.markdown('<div class="ct-sec">Sign-off</div>', unsafe_allow_html=True)
     missing = missing_decisions(findings, ready, state["repairs"], state["issues"])
@@ -811,7 +863,7 @@ with tab_review:
                                     str(out / "findings.reviewed.json")], capture_output=True, text=True)
                 check = f"Organizers' validator on findings.reviewed.json: {(v.stdout or v.stderr).strip().split()[0]}"
             state["flash"] = (f"Signed off by {reviewer} ({role}): {decision}. Saved in {out.relative_to(REPO)}", check)
-            st.rerun()                               # redraw so the step tracker at the top shows the sign-off
+            st.rerun()                               # redraw so the header and the Overview show the sign-off
     if state["signed"]:
         sd = state["signed"]
         msg, check = state.get("flash", ("Signed off.", ""))
@@ -829,7 +881,7 @@ with tab_review:
 
 
 # ------------------------------------------------------------------------------------------------ fool the tower
-with tab_fool:
+def page_fool() -> None:
     st.markdown('<div class="ct-sec">Fool the Tower: plant your own errors</div>', unsafe_allow_html=True)
     st.caption("Pick some errors. The organizers' own generator (data/tcga-brca/make_release.py) builds a release with "
                "exactly those changes and writes its answer key. The tool then looks for them without the key, and the "
@@ -879,5 +931,34 @@ with tab_fool:
         if res["missed"] or res["false_alarms"]:
             st.caption(f"Missed: {res['missed'][:5]}. False alarms: {res['false_alarms'][:5]}.")
         st.caption(f"Release check: {res['verdict']}. {res['verdict_reason']}")
-        st.button(f"Open {res['label'].lower()} on the screen", key="fool_open", on_click=open_release,
+        st.button(f"Open {res['label'].lower()} on the Overview", key="fool_open", on_click=open_release,
                   args=(res["label"],))
+
+
+# ------------------------------------------------------------------------------------------------ evidence + pages
+def page_evidence() -> None:
+    checks, analyses, trail = st.tabs([":material/checklist: Checks and reasons", ":material/bar_chart: Analyses",
+                                       ":material/account_tree: Evidence trail"])
+    with checks:
+        render_checks()
+    with analyses:
+        render_analyses()
+    with trail:
+        render_trail()
+
+
+PAGES = {"overview": page_overview, "changed": page_changed, "evidence": page_evidence, "review": page_review,
+         "fool": page_fool}
+overview = st.Page(page_overview, title="Overview", icon=":material/dashboard:", default=True)
+nav = st.navigation([overview,
+                     st.Page(page_changed, title="What changed", icon=":material/difference:", url_path="what-changed"),
+                     st.Page(page_evidence, title="Evidence", icon=":material/fact_check:", url_path="evidence"),
+                     st.Page(page_review, title="Review and sign-off", icon=":material/rate_review:", url_path="review"),
+                     st.Page(page_fool, title="Fool the Tower", icon=":material/science:", url_path="fool-the-tower")],
+                    position="top")
+if st.session_state.pop("goto_overview", False):
+    st.switch_page(overview)
+if st.session_state.get("_test_page") in PAGES:          # lets headless tests open any page
+    PAGES[st.session_state["_test_page"]]()
+else:
+    nav.run()

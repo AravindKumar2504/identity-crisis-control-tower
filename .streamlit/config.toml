@@ -31,3 +31,7 @@ headless = true
 
 [browser]
 gatherUsageStats = false
+
+# The screen is shown to judges: hide the Deploy button and the developer menu items.
+[client]
+toolbarMode = "viewer"
