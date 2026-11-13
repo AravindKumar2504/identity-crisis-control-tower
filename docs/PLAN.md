@@ -2,6 +2,16 @@
 
 Five-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 2:15 PM ET**; be at the Cabral Center by 10 AM (doors 9:30).
 
+## Friday: what's left, by person
+
+Pull first (`git pull`), and restart the screen if it's open. `python -m tower doctor` checks your setup in one command.
+
+- **Aakruti:** the checks in [CONTRACTS.md](CONTRACTS.md) section 5, in this order: `subtype_columns_disagree`, `survival_redacted`, `survival_zero_time`, `patient_double_count`, `her2_field_conflict` (these change verdicts), then `subtype_missing`, `a2_robustness`, `missing_values`, `leakage_columns`. Each problem gets its own id. Done when `python -m tower check --card all` shows nothing "not built yet".
+- **Madhu:** the four names in the README Team section; rehearse [DEMO.md](DEMO.md) under 3 minutes; plan the video, recorded after the 9 PM dry run, with its link in the README.
+- **Chirag:** Checkpoint 2 (ours from an empty folder using only the README, then swap with our pair and run theirs; post what broke). Then post `out/practice/findings.json` in Discord for the Repair Review Desk teams.
+- **Aravind:** review and merge PRs; after the dry run, the optional verified AI summary.
+- **Everyone:** Madhu and Chirag send GitHub usernames; own branch plus a PR; call at 2 PM; merged by 9 PM; dry run at 9 PM; freeze Saturday at 2:15 PM.
+
 ## The idea in one paragraph
 
 A research engineer gets a new release of the TCGA breast cancer data. Our tool answers two questions: **what changed** (every swapped, copied, missing or relabelled sample, named one by one) and **is the data still fit for my research question** (Ready, Conditional, Blocked or Insufficient Evidence, with the reasons, the evidence trail and the fix). Other Control Tower teams answer only the first question. The rubric gives 40 of its 100 points to the second.
@@ -67,7 +77,7 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti | Each check returns `Issue`s (`tower/checks/`, docs/CONTRACTS.md) with evidence rows and a source |
 | P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): question board, review and sign-off. Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group. For ours, `python -m tower doctor` checks the whole setup in one command |
-| P2 | README polish, demo video, 3-minute pitch built on docs/USER.md | Madhu | Rehearsed under 3 minutes |
+| P2 | README polish, demo video, 3-minute pitch (script in docs/DEMO.md, user research in docs/USER.md) | Madhu | Rehearsed under 3 minutes |
 | P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
 
 ## Timeline
