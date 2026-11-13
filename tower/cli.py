@@ -132,7 +132,7 @@ def main(argv=None) -> None:
         sys.exit("Unsealing failed (see the message above). Check the envelope number and the four words.")
     name = "practice" if args.number.lower() == "practice" else f"E{int(args.number.upper().lstrip('E')):02d}"
     release_b = challenge / "envelopes" / "opened" / name / "release"
-    print(f"Unsealed in {time.time() - t0:.1f} s; comparing {release_b} with release A")
+    print(f"Unsealed in {time.time() - t0:.1f} s; comparing envelope {name}'s release with release A")
     run_compare(challenge / "data" / "tcga-brca" / "raw", release_b,
                 pathlib.Path(args.out_dir) / name / "findings.json", sel, name_a="release-A", name_b=name,
                 challenge=challenge)
