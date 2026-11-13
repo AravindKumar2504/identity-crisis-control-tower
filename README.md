@@ -13,7 +13,8 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 - Release comparison, A1/A2 reruns, `findings.json` and the sealed-envelope command work.
 - On the organizers' practice envelope it reports the same swap, the same five copies with their sources, the same five lost samples and the same A1 result (3.051 to 3.019) as the organizers' reference output, and its file passes `format/validate.py`. Unsealing plus checking takes about 2 seconds.
 - Scorecard: 13 test releases built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). Every planted sample found, nothing extra reported, every release checked in about a second.
-- Next: research-question cards and verdicts, release A data checks, the review screen. Plan: [docs/PLAN.md](docs/PLAN.md).
+- Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, ER-alpha by ER status is Ready on release A and Conditional on the practice envelope; ESR1 expression vs ER status becomes Insufficient Evidence because the envelope has no RNA).
+- Next: release A data checks (in progress), the review and sign-off screen. Plan: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
 
@@ -47,6 +48,19 @@ python -m tower envelope practice orange meadow pilot lantern
 
 It unseals the envelope with the organizers' `unseal.py`, compares the new release with release A, writes `out/<envelope>/findings.json` and `out/<envelope>/report.md`, and runs the organizers' validator. The practice code above is public; on Saturday use your own number and words.
 
+Add `--card all` to also judge every research-question card against the envelope's release (one `readiness.json` and `.md` per card in `out/<envelope>/readiness/`).
+
+### Is the data fit for a research question?
+
+```bash
+python -m tower cards
+```
+```bash
+python -m tower check --card os-luminal-a
+```
+
+Each card states the intended use, the group studied, the outcome and the acceptable limitations. The tool returns Ready, Conditional, Blocked or Insufficient Evidence with the reasons, the next step, and the evidence trail (fields, every sample involved, file fingerprints), in `out/readiness/<card>.json` and `.md`. Add `--release <folder> --against <release A folder>` to judge a new release and include the release changes that touch the question. Until every check is built, add `--allow-missing-checks` to list unbuilt checks as pending.
+
 ### Compare any two releases
 
 ```bash
@@ -74,7 +88,11 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/diff.py` | Explains each change: swaps and chains, copies, losses, gains, relabels, blanked or edited values |
 | `tower/analyses.py` | A1 and A2, matching the organizers' `reference_analyses.py`, and which changes touch them |
 | `tower/findings.py` | Writes `findings.json`: one finding per change, every affected sample cited, severity with its reason |
-| `tower/cli.py` | `compare` and `envelope` commands |
+| `tower/cards.py` | Loads research-question cards and works out which samples each question studies |
+| `tower/readiness.py` | The verdict (Ready, Conditional, Blocked, Insufficient Evidence), its reasons and the evidence trail |
+| `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`) and release A data checks |
+| `cards/` | Eight research-question cards |
+| `tower/cli.py` | `compare`, `envelope`, `cards` and `check` commands |
 | `tests/releases/` | Configs for the scorecard's test releases |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
 | `docs/` | Team plan and user research |

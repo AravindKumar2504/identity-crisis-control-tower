@@ -1,0 +1,19 @@
+id: os-luminal-a
+title: Overall survival by PAM50 subtype, with Luminal A as the focus
+intended_use: Compare overall survival between PAM50 subtypes, with Luminal A primary tumors as the group of interest, in a research analysis.
+group_studied: Primary tumors (sample type 01) with a PAM50 subtype call and a survival record.
+outcome: Overall survival (OS event and OS.time in survival.tsv).
+acceptable_limitations: Up to 5% of the group excluded for documented reasons.
+not_acceptable: Counting a patient twice, using redacted records, or an endpoint the data's own curators advise against for this group.
+out_of_scope: Prognosis for any patient, treatment advice, risk scores or any clinical claim.
+uses:
+  clinical.tsv: [PAM50Call_RNAseq]
+  survival.tsv: [OS, OS.time, Redaction, _PATIENT]
+group:
+  sample_type: "01"
+  in_files: [survival.tsv]
+  not_blank: [PAM50Call_RNAseq]
+endpoint:
+  name: OS
+  focus_subtype: LumA
+checks: [inputs_present, endpoint_suitability, survival_redacted, survival_zero_time, patient_double_count, subtype_columns_disagree]

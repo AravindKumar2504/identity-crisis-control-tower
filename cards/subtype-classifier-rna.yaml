@@ -1,0 +1,18 @@
+id: subtype-classifier-rna
+title: Train a model to predict PAM50 subtype from RNA expression
+intended_use: Train and evaluate a machine-learning classifier that predicts each tumor's PAM50 subtype from its RNA expression profile.
+group_studied: Primary tumors (sample type 01) with RNA data and a PAM50 subtype call.
+outcome: Classifier accuracy against the PAM50Call_RNAseq label, on held-out patients.
+acceptable_limitations: A modest class imbalance between subtypes, if reported.
+not_acceptable: A label computed from the model's own inputs, or input features that encode the label.
+out_of_scope: Using the model on patients, diagnosis, treatment advice or any clinical claim.
+uses:
+  clinical.tsv: [PAM50Call_RNAseq]
+  rna_hiseq.tsv.gz: []
+group:
+  sample_type: "01"
+  in_files: [rna_hiseq.tsv.gz]
+  not_blank: [PAM50Call_RNAseq]
+label: PAM50Call_RNAseq
+features: [rna_hiseq.tsv.gz]
+checks: [inputs_present, label_derivation, leakage_columns]

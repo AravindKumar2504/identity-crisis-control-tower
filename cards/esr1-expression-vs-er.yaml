@@ -1,0 +1,19 @@
+id: esr1-expression-vs-er
+title: Does ESR1 gene expression agree with clinical ER status?
+intended_use: Measure how often RNA expression of ESR1 agrees with the clinical ER test, as a data-quality check before a research analysis.
+group_studied: Primary tumors (sample type 01) with RNA data and a clinical ER status of Positive or Negative.
+outcome: ESR1 expression (rna_hiseq.tsv.gz) by clinical ER status, and the share of tumors where they disagree.
+acceptable_limitations: Disagreement in a minority of tumors, which is expected biologically (for example ER-low tumors), if reported.
+not_acceptable: Comparing expression and ER status for samples whose data were swapped or copied.
+out_of_scope: Diagnosis, treatment advice, risk scores or any clinical claim.
+uses:
+  clinical.tsv: [breast_carcinoma_estrogen_receptor_status]
+  rna_hiseq.tsv.gz: [ESR1]
+group:
+  sample_type: "01"
+  in_files: [rna_hiseq.tsv.gz]
+  values:
+    breast_carcinoma_estrogen_receptor_status: [Positive, Negative]
+limits:
+  missing_fraction: 0.10
+checks: [inputs_present, missing_values]

@@ -57,14 +57,33 @@ def register(name: str):
     return deco
 
 
-def run_checks(release, card: dict) -> list[Issue]:
-    """Run every check the card lists; a listed check that doesn't exist yet comes back as 'unknown'."""
+def load_all() -> None:
+    """Import every module in tower/checks/ so each @register runs. A new check file is picked up automatically."""
+    import importlib
+    import pkgutil
+    for m in pkgutil.iter_modules(__path__):
+        importlib.import_module(f"{__name__}.{m.name}")
+
+
+def run_checks(release, card: dict, allow_missing: bool = False) -> list[Issue]:
+    """Run every check the card lists.
+
+    A listed check that doesn't exist yet comes back as 'unknown' (material), which makes the verdict Insufficient
+    Evidence: the honest answer when part of the question can't be judged. While checks are still being written,
+    allow_missing=True lists them as pending without letting them decide the verdict.
+    """
+    load_all()
     out: list[Issue] = []
     for name in card.get("checks", []):
         fn = CHECKS.get(name)
         if fn is None:
-            out.append(Issue(id=name, title=f"Check '{name}' is not implemented yet", status="unknown",
-                             material=True, limitation="The tool cannot judge this part of the question yet."))
+            out.append(Issue(id=name, title=f"Check '{name}' is not built yet", status="unknown",
+                             material=not allow_missing, pre_existing=False,
+                             limitation="The tool cannot judge this part of the question yet."))
             continue
-        out.extend(fn(release, card))
+        try:
+            out.extend(fn(release, card))
+        except Exception as e:      # a broken check must never take the whole report down
+            out.append(Issue(id=name, title=f"Check '{name}' failed: {e}", status="unknown", material=True,
+                             pre_existing=False, limitation="The check crashed, so this part can't be judged."))
     return out

@@ -104,6 +104,34 @@ def plain_report(doc: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def run_check(card_ref: str, release_dir, against_dir=None, out: pathlib.Path | None = None,
+              allow_missing: bool = False, quiet: bool = False) -> dict:
+    """Judge one research-question card against a release (optionally compared with release A)."""
+    from .cards import load_card
+    from .readiness import assess, markdown
+    card = load_card(card_ref)
+    rel = load_release(release_dir)
+    cmp = results = None
+    if against_dir:
+        a = load_release(against_dir, "release-A")
+        cmp = compare(a, rel)
+        results, _ = rerun(a, rel, cmp.changes)
+    doc = assess(card, rel, cmp, results, allow_missing=allow_missing)
+    out = out or pathlib.Path("out") / "readiness" / f"{card['id']}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(doc, indent=2, default=str))
+    out.with_suffix(".md").write_text(markdown(doc))
+    if not quiet:
+        print(f"\n{card['title']}\n  Verdict: {doc['verdict']}")
+        for r in doc["reasons"]:
+            print(f"  - {r}")
+        for x in doc["issues"]:
+            mark = {"pass": "ok", "warn": "!!", "block": "XX", "unknown": "??"}[x["status"]]
+            print(f"    [{mark}] {x['id']}{'' if x['material'] else ' (pending or not material)'}")
+        print(f"  Wrote {out} and {out.with_suffix('.md')}")
+    return doc
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(prog="python -m tower", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -117,8 +145,34 @@ def main(argv=None) -> None:
     e.add_argument("number"), e.add_argument("words", nargs="+")
     e.add_argument("--challenge"), e.add_argument("--out-dir", default="out")
     e.add_argument("--analyses")
+    e.add_argument("--card", action="append", help="also judge this research-question card (repeatable, or 'all')")
+    e.add_argument("--allow-missing-checks", action="store_true")
+    k = sub.add_parser("check", help="judge a research-question card against a release")
+    k.add_argument("--card", required=True, help="card id (see `cards`) or path, or 'all'")
+    k.add_argument("--release", help="release folder to judge (default: release A from the challenge repo)")
+    k.add_argument("--against", help="release A folder to compare with, so release changes are included")
+    k.add_argument("--challenge"), k.add_argument("--out-dir", default="out/readiness")
+    k.add_argument("--allow-missing-checks", action="store_true",
+                   help="list checks that aren't built yet as pending instead of letting them decide the verdict")
+    sub.add_parser("cards", help="list the research-question cards")
     args = p.parse_args(argv)
     sel = args.analyses.split(",") if getattr(args, "analyses", None) else None
+
+    if args.cmd == "cards":
+        from .cards import list_cards
+        for c in list_cards():
+            print(f"{c['id']:<26} {c['title']}")
+        return
+
+    if args.cmd == "check":
+        from .cards import list_cards
+        raw = find_challenge(args.challenge) / "data" / "tcga-brca" / "raw"
+        release = args.release or raw
+        ids = [c["id"] for c in list_cards()] if args.card == "all" else [args.card]
+        for cid in ids:
+            run_check(cid, release, args.against, pathlib.Path(args.out_dir) / f"{cid}.json",
+                      allow_missing=args.allow_missing_checks)
+        return
 
     if args.cmd == "compare":
         ch = find_challenge(args.challenge) if args.challenge else None
@@ -137,6 +191,13 @@ def main(argv=None) -> None:
                 pathlib.Path(args.out_dir) / name / "findings.json", sel, name_a="release-A", name_b=name,
                 challenge=challenge)
     print(f"Total time from unseal to findings: {time.time() - t0:.1f} s")
+    if args.card:
+        from .cards import list_cards
+        ids = [c["id"] for c in list_cards()] if "all" in args.card else args.card
+        for cid in ids:
+            run_check(cid, release_b, challenge / "data" / "tcga-brca" / "raw",
+                      pathlib.Path(args.out_dir) / name / "readiness" / f"{cid}.json",
+                      allow_missing=args.allow_missing_checks)
 
 
 if __name__ == "__main__":

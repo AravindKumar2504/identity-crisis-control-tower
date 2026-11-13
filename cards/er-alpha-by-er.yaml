@@ -1,0 +1,21 @@
+id: er-alpha-by-er
+title: ER-alpha protein in ER-positive vs ER-negative primary tumors (A1)
+intended_use: A descriptive figure for a research report comparing mean ER-alpha protein (RPPA) between primary tumors that tested ER-positive and ER-negative in the clinic.
+group_studied: Primary tumors (sample type 01) with protein data and a clinical ER status of Positive or Negative.
+outcome: Mean ER-alpha protein (the ERALPHA row of protein_rppa.tsv.gz) in each ER group, and the difference between them.
+acceptable_limitations: Up to 10% of primary tumors without a usable ER status, and a modest shift in which hospitals contributed samples, if both are reported.
+not_acceptable: Any sample carrying another sample's protein data, or a profile counted twice.
+out_of_scope: Diagnosis, treatment advice, risk scores or any clinical claim about a patient.
+uses:
+  clinical.tsv: [breast_carcinoma_estrogen_receptor_status]
+  protein_rppa.tsv.gz: [ERALPHA]
+group:
+  sample_type: "01"
+  in_files: [protein_rppa.tsv.gz]
+  values:
+    breast_carcinoma_estrogen_receptor_status: [Positive, Negative]
+analyses: [A1]
+limits:
+  missing_fraction: 0.10
+  site_shift_tvd: 0.15
+checks: [inputs_present, missing_values, site_shift, duplicate_subjects]

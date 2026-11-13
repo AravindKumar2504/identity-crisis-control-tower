@@ -1,0 +1,28 @@
+id: hormone-therapy-response
+title: Does ER-alpha protein level predict response to hormone therapy?
+intended_use: Test whether tumors with higher ER-alpha protein responded better to hormone (endocrine) therapy, in a research analysis.
+group_studied: Primary tumors (sample type 01) with protein data.
+outcome: Response to hormone therapy, compared across ER-alpha protein levels.
+acceptable_limitations: Missing treatment details for a minority of tumors, if reported.
+not_acceptable: Treating any treatment, or any later tumor event, as a response to hormone therapy.
+out_of_scope: Recommending a treatment for any patient, risk scores or any clinical claim.
+uses:
+  protein_rppa.tsv.gz: [ERALPHA]
+  clinical.tsv: [targeted_molecular_therapy, additional_pharmaceutical_therapy, history_of_neoadjuvant_treatment, new_tumor_event_after_initial_treatment]
+group:
+  sample_type: "01"
+  in_files: [protein_rppa.tsv.gz]
+requires:
+  - need: which tumors received hormone (endocrine) therapy, by drug or drug class
+    columns_any: []
+    near_misses: [targeted_molecular_therapy, additional_pharmaceutical_therapy, history_of_neoadjuvant_treatment]
+    why: These fields record yes or no for broad treatment types without naming the drug, so hormone therapy can't be told apart from other therapies.
+    next_step: Narrow the question to what the release records (for example progression-free interval by ER-alpha level, without claiming a treatment effect), or link a source that records endocrine therapy by drug.
+    evidence_needed: A field that names the endocrine therapy each patient received.
+  - need: a response measure for hormone therapy
+    columns_any: []
+    near_misses: [new_tumor_event_after_initial_treatment]
+    why: A new tumor event after any initial treatment is not a response to hormone therapy, and treatments were not assigned at random, so comparing treated and untreated tumors would mix in the reasons each treatment was chosen.
+    next_step: Use a study that measured response to endocrine therapy, or narrow the question to recurrence without claiming a treatment effect.
+    evidence_needed: A recorded response to endocrine therapy, ideally from a randomized or well-controlled source.
+checks: [inputs_present, outcome_available]

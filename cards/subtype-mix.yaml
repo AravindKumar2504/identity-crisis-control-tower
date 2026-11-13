@@ -1,0 +1,18 @@
+id: subtype-mix
+title: PAM50 subtype mix of primary tumors (A2)
+intended_use: Report the share of each PAM50 molecular subtype among primary breast tumors in a cohort description.
+group_studied: Primary tumors (sample type 01) with a PAM50 subtype call.
+outcome: Count and percent of tumors in each PAM50 subtype.
+acceptable_limitations: Up to 5% of tumors whose subtype depends on which subtype column is used, if reported.
+not_acceptable: A headline percentage that changes with an undocumented choice of subtype column.
+out_of_scope: Diagnosis, treatment advice, risk scores or any clinical claim.
+uses:
+  clinical.tsv: [PAM50Call_RNAseq, PAM50_mRNA_nature2012]
+group:
+  sample_type: "01"
+  not_blank: [PAM50Call_RNAseq]
+analyses: [A2]
+limits:
+  subtype_disagreement: 0.05
+  missing_fraction: 0.10
+checks: [inputs_present, subtype_columns_disagree, subtype_missing, a2_robustness, duplicate_subjects]
