@@ -57,12 +57,23 @@ def register(name: str):
     return deco
 
 
+LOAD_ERRORS: dict[str, str] = {}      # check file -> why it failed to import (shown on the screen)
+
+
 def load_all() -> None:
-    """Import every module in tower/checks/ so each @register runs. A new check file is picked up automatically."""
+    """Import every module in tower/checks/ so each @register runs. A new check file is picked up automatically.
+
+    A check file that fails to import is recorded in LOAD_ERRORS instead of stopping the tool: its checks then show
+    as not available, and every other check still runs.
+    """
     import importlib
     import pkgutil
     for m in pkgutil.iter_modules(__path__):
-        importlib.import_module(f"{__name__}.{m.name}")
+        try:
+            importlib.import_module(f"{__name__}.{m.name}")
+            LOAD_ERRORS.pop(m.name, None)
+        except Exception as e:
+            LOAD_ERRORS[m.name] = f"{type(e).__name__}: {e}"[:240]
 
 
 def run_checks(release, card: dict, allow_missing: bool = False) -> list[Issue]:
@@ -77,8 +88,10 @@ def run_checks(release, card: dict, allow_missing: bool = False) -> list[Issue]:
     for name in card.get("checks", []):
         fn = CHECKS.get(name)
         if fn is None:
-            out.append(Issue(id=name, title=f"Check '{name}' is not built yet", status="unknown",
-                             material=not allow_missing, pre_existing=False,
+            broken = "; ".join(f"{k}.py: {v}" for k, v in LOAD_ERRORS.items())
+            out.append(Issue(id=name, title=f"Check '{name}' is not built yet"
+                             + (f" (or its file failed to load: {broken})" if broken else ""), status="unknown",
+                             material=not allow_missing, pre_existing=False, numbers={"pending": True},
                              limitation="The tool cannot judge this part of the question yet."))
             continue
         try:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -22,6 +23,7 @@ sys.path.insert(0, str(REPO))
 
 from tower.analyses import rerun  # noqa: E402
 from tower.cards import list_cards, load_card  # noqa: E402
+from tower.checks import LOAD_ERRORS  # noqa: E402
 from tower.diff import compare  # noqa: E402
 from tower.findings import build  # noqa: E402
 from tower.readiness import assess  # noqa: E402
@@ -48,6 +50,9 @@ KIND = {"sample_swap": "Swapped samples", "duplicate": "Copied profiles", "membe
 ACTION = {"restore_from_previous_release": "Restore from release A", "exclude": "Exclude",
           "flag_for_review": "Flag for review", "relabel": "Relabel", "other": "Other"}
 A_ONLY = "Release A only (no new release)"
+# The sign-off decision starts from what the tool found; a person can change it, with a reason if they overrule it.
+DEFAULT_SIGNOFF = {"Ready": "Approve use as stated", "Conditional": "Approve with the conditions listed",
+                   "Blocked": "Do not use", "Insufficient Evidence": "Request more evidence"}
 
 st.markdown("""
 <style>
@@ -180,10 +185,11 @@ def board(b_path: str | None, allow_missing: bool, sig: tuple = ()) -> list[dict
         try:
             d = assess(c, rel, cmp, results, allow_missing=allow_missing)
             out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
-                        "verdict": d["verdict"], "reason": d["reasons"][0] if d["reasons"] else ""})
+                        "verdict": d["verdict"], "reason": d["reasons"][0] if d["reasons"] else "",
+                        "pending": len(d.get("pending_checks") or [])})
         except Exception as e:  # one card failing must not hide the others
             out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
-                        "verdict": "Insufficient Evidence", "reason": f"could not be judged: {e}"})
+                        "verdict": "Insufficient Evidence", "reason": f"could not be judged: {e}", "pending": 0})
     return out
 
 
@@ -241,6 +247,19 @@ except Exception as e:  # never show a stack trace to a judge
 ctx = f"{release_label}|{card['id']}"
 state = st.session_state.setdefault("review", {}).setdefault(ctx, {"repairs": {}, "issues": {}, "signed": None})
 first_seen = st.session_state.setdefault("decided_at", {})
+dkey, nkey = f"{ctx}|signoff", f"{ctx}|signoff_note"
+# Streamlit forgets a widget's value while the widget isn't drawn (for example while another question is open), so
+# every review widget's value for this question is also kept here and put back when the question is opened again.
+kept = state.setdefault("widgets", {})
+for k, v in kept.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+for k in [k for k in list(st.session_state.keys()) if isinstance(k, str) and k.startswith(ctx + "|")]:
+    kept[k] = st.session_state[k]
+st.session_state.setdefault(dkey, DEFAULT_SIGNOFF[ready["verdict"]])
+if LOAD_ERRORS:
+    st.sidebar.warning("A check file failed to load, so its checks show as not built: "
+                       + "; ".join(f"{k}.py ({v})" for k, v in LOAD_ERRORS.items()))
 
 
 def collect(kind: str, ids: list[str]) -> dict:
@@ -255,11 +274,20 @@ def collect(kind: str, ids: list[str]) -> dict:
 
 
 repairs = findings["repairs"] if findings else []
-required_issues = [i for i in ready["review"]["required"] if not i.startswith("F")]
+required_issues = list(dict.fromkeys(i for i in ready["review"]["required"] if not i.startswith("F")))
 state["repairs"] = collect("rep", [r["id"] for r in repairs])
 state["issues"] = collect("iss", required_issues)
 total = len(repairs) + len(required_issues)
 decided = len(state["repairs"]) + len(state["issues"])
+# A sign-off covers exactly what was decided. If any decision, the verdict or the reviewer changes afterwards, the
+# sign-off is withdrawn so the record can never disagree with the screen.
+signature = json.dumps({"repairs": {k: [v["decision"], v["reason"]] for k, v in state["repairs"].items()},
+                        "issues": {k: [v["decision"], v["reason"]] for k, v in state["issues"].items()},
+                        "verdict": ready["verdict"], "decision": st.session_state.get(dkey),
+                        "note": st.session_state.get(nkey) or "", "reviewer": reviewer, "role": role}, sort_keys=True)
+if state["signed"] and state.get("signed_inputs") != signature:
+    state["signed"], state["withdrawn"] = None, True
+    state.pop("flash", None)
 touching = {t["finding"] for t in ready["release_changes"]}
 
 # ------------------------------------------------------------------------------------------------ header + hero
@@ -316,7 +344,8 @@ for i, q in enumerate(board(b_path, allow_missing, inputs_sig())):
     with qcols[i % 4]:
         st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
                   type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"])
-        st.caption(q["verdict"] + (" · open" if q["id"] == card["id"] else ""))
+        st.caption(q["verdict"] + (f" · {q['pending']} not checked yet" if q.get("pending") else "")
+                   + (" · open" if q["id"] == card["id"] else ""))
 
 tab_why, tab_changed, tab_analyses, tab_trail, tab_review = st.tabs(
     ["🧭 Why this verdict", "🔀 What changed", "📊 Analyses", "🧬 Evidence trail", "✍️ Review and sign-off"])
@@ -335,7 +364,8 @@ with tab_why:
     for x in ready["issues"]:
         label, cls = STATUS[x["status"]]
         if not x["material"]:
-            label, cls = ("pending" if x["status"] == "unknown" else "not material here"), "chip-muted"
+            label, cls = ("not built yet" if (x.get("numbers") or {}).get("pending")
+                          else "can't tell" if x["status"] == "unknown" else "not material here"), "chip-muted"
         with st.container(border=True):
             st.markdown(chip(label, cls) + (chip("already in release A", "chip-muted") if x["pre_existing"] and x["material"] else "")
                         + f'<b>{esc(x["id"])}</b>', unsafe_allow_html=True)
@@ -348,7 +378,8 @@ with tab_why:
                     if x["numbers"]:
                         st.json(x["numbers"], expanded=False)
                     if x["row_count"]:
-                        st.markdown(f"**Samples involved:** {x['row_count']}")
+                        st.markdown(f"**Samples involved:** {x['row_count']}"
+                                    + (f" (the first {len(x['rows'])} are listed)" if len(x["rows"]) < x["row_count"] else ""))
                         st.markdown(f'<div class="ct-mono">{esc(", ".join(x["rows"]))}</div>', unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------------------------ what changed
@@ -457,7 +488,8 @@ with tab_analyses:
             k2.metric("95% range (1,000 resamples)", f"{rob['range_95'][0]} to {rob['range_95'][1]}")
             if rob.get("release_a_difference") is not None:
                 k3.metric("Release A", rob["release_a_difference"])
-                k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
+                if rob["flagged_samples"]:
+                    k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
             st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
                        "sampling variation only, not systematic errors such as a mislabelled ER test.")
     if not items:
@@ -543,6 +575,9 @@ with tab_trail:
 with tab_review:
     if not (reviewer and role):
         st.warning("Enter your name and role in the sidebar to review.")
+    if state.pop("withdrawn", False):
+        st.warning("Something changed after the sign-off (a decision, the verdict or the reviewer), so the sign-off "
+                   "was withdrawn. Check the decisions and sign off again.")
     st.progress(decided / total if total else 1.0, text=f"{decided} of {total} decisions made")
     st.markdown('<div class="ct-sec">Proposed fixes for the release changes</div>', unsafe_allow_html=True)
     if not repairs:
@@ -563,12 +598,16 @@ with tab_review:
     st.markdown('<div class="ct-sec">Problems for this question</div>', unsafe_allow_html=True)
     if not required_issues:
         st.caption("No problems need a decision for this question.")
-    by_id = {x["id"]: x for x in ready["issues"]}
+    by_id: dict[str, list] = {}
+    for x in ready["issues"]:
+        by_id.setdefault(x["id"], []).append(x)      # a check may return several problems under one id
     for iid in required_issues:
-        x = by_id[iid]
+        xs = by_id.get(iid) or [{"status": "unknown", "title": iid}]
+        x = xs[0]
         with st.container(border=True):
             st.markdown(chip(STATUS[x["status"]][0], STATUS[x["status"]][1]) + f"<b>{esc(iid)}</b>", unsafe_allow_html=True)
-            st.markdown(x["title"])
+            for y in xs:
+                st.markdown(y["title"])
             st.segmented_control(f"Do you agree? ({iid})", ISSUE_CHOICES, key=f"{ctx}|iss|{iid}",
                                  disabled=not (reviewer and role))
             st.text_input(f"Reason for {iid}", key=f"{ctx}|issr|{iid}", disabled=not (reviewer and role))
@@ -587,14 +626,19 @@ with tab_review:
         if unexplained:
             st.info(f"Give a reason for: {', '.join(unexplained)}")
         c1, c2 = st.columns([2, 3])
-        decision = c1.selectbox("Your decision for this question", SIGNOFF_CHOICES)
-        note = c2.text_input("Note (conditions, what you need next)")
-        can_sign = bool(reviewer and role) and not missing and not unexplained
+        decision = c1.selectbox("Your decision for this question", SIGNOFF_CHOICES, key=dkey)
+        note = c2.text_input("Note (conditions, what you need next)", key=nkey)
+        overrules = ready["verdict"] in ("Blocked", "Insufficient Evidence") and decision.startswith("Approve")
+        if overrules:
+            st.warning(f"The tool says {ready['verdict']}. Approving overrules it, so the note must say why.")
+        can_sign = (bool(reviewer and role) and not missing and not unexplained
+                    and not (overrules and not (note or "").strip()))
         if st.button("Sign off", type="primary", disabled=not can_sign):
             signed_doc = signed(ready, findings, state["repairs"], state["issues"], reviewer, role, decision, note)
             reviewed = with_decisions(findings, state["repairs"], reviewer, role) if findings else None
-            state["signed"] = signed_doc
-            out = REPO / "out" / "reviews" / f"{card['id']}-{release_label.split()[-1]}-{now().replace(':', '')}"
+            state["signed"], state["signed_inputs"] = signed_doc, signature
+            slug = re.sub(r"[^A-Za-z0-9]+", "-", release_label).strip("-").lower()
+            out = REPO / "out" / "reviews" / f"{card['id']}-{slug}-{now().replace(':', '')}"
             out.mkdir(parents=True, exist_ok=True)
             (out / "readiness.signed.json").write_text(json.dumps(signed_doc, indent=2, default=str))
             (out / "review_record.md").write_text(record_markdown(signed_doc, reviewed))

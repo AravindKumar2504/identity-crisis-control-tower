@@ -33,12 +33,57 @@ def changes_touching(card: dict, cmp: Comparison) -> list[dict]:
         col = ch.detail.get("column")
         if ch.file in ROW_FILES and col is not None and col not in uses[ch.file]:
             continue
+        structural = []
+        if not ch.samples and not ch.detail.get("file_missing"):
+            # Rows or columns were added or removed: that matters only if the card reads one of them.
+            moved = [*ch.detail.get("rows_removed", []), *ch.detail.get("rows_added", []),
+                     *ch.detail.get("columns_removed", []), *ch.detail.get("columns_added", [])]
+            structural = [x for x in moved if x in set(uses[ch.file] or [])]
+            if not structural:
+                continue
         samples = sorted(set(ch.samples) & group) if ch.samples else []
         if ch.samples and not samples:
             continue
-        hits.append({"finding": f"F{i + 1}", "kind": ch.kind, "file": ch.file, "samples": samples or ch.samples,
-                     "summary": ch.summary})
+        hits.append({"finding": f"F{i + 1}", "kind": ch.kind, "file": ch.file, "samples": samples,
+                     "summary": ch.summary, "column": col, "direction": ch.detail.get("direction"),
+                     "structural": structural, "file_missing": bool(ch.detail.get("file_missing"))})
     return hits
+
+
+def _touch_reason(t: dict) -> str:
+    if t.get("file_missing"):
+        return f"Release change {t['finding']} ({t['kind']}): {t['file']}, which this question reads, is missing or unreadable."
+    if t.get("structural"):
+        return (f"Release change {t['finding']} ({t['kind']}) adds or removes {', '.join(t['structural'])} in "
+                f"{t['file']}, which this question reads.")
+    return f"Release change {t['finding']} ({t['kind']}) touches {len(t['samples'])} sample(s) this question studies."
+
+
+# What a person should do about each kind of release change that touches the question, and what would settle it.
+_STEPS = {
+    "sample_swap": ("restore the release-A profiles of the {n} swapped sample(s), or have the data provider confirm "
+                    "which id each profile belongs to", "The provider confirms the new labels are correct."),
+    "duplicate": ("exclude the {n} copied profile(s) from this analysis",
+                  "The provider shows the ids are distinct specimens with their own measurements."),
+    "lost": ("ask the data provider why {n} sample(s) were removed before using the smaller group (a redaction is "
+             "legitimate, a processing loss is not)", "The provider's reason for each removal."),
+    "gained": ("check where the {n} new sample(s) came from before including them", "Source records for the new samples."),
+    "label_conflict": ("confirm the {n} changed '{col}' value(s) against the source records, and keep the release-A "
+                       "values until they are explained", "A documented correction for each changed value."),
+    "missing_data": ("get the missing values back from the data provider",
+                     "A release where the values are present, matching its published fingerprint."),
+    "other": ("look at the before and after values and decide whether to use them", "An explanation from the data provider."),
+}
+
+
+def _touch_step(t: dict) -> dict:
+    key = t.get("direction") if t["kind"] == "membership_change" and t.get("direction") in ("lost", "gained") else t["kind"]
+    text, need = _STEPS.get(key, _STEPS["other"])
+    if t.get("structural"):
+        text, need = (f"find out why {', '.join(t['structural'])} changed in {t['file']} before using this release",
+                      "An explanation from the data provider.")
+    text = text.format(n=len(t["samples"]), col=t.get("column") or "")
+    return {"for": t["finding"], "step": f"{t['finding']}: {text[0].upper()}{text[1:]}.", "evidence_needed": need}
 
 
 def assess(card: dict, release: Release, cmp: Comparison | None = None, results: dict | None = None,
@@ -63,9 +108,8 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
             break
     reasons = [f"{x.title}." for x in deciding]
     if verdict == "Conditional" and touching:
-        reasons += [f"Release change {t['finding']} ({t['kind']}) touches {len(t['samples'])} sample(s) this "
-                    f"question studies." for t in touching]
-    pending = [x.id for x in issues if x.status == "unknown" and not x.material]
+        reasons += [_touch_reason(t) for t in touching]
+    pending = [x.id for x in issues if (x.numbers or {}).get("pending") and not x.material]
     if verdict == "Ready":
         checked = [x.id for x in issues if x.status == "pass"]
         reasons = [f"Nothing material found in the checks that ran ({', '.join(checked) or 'none'})."
@@ -99,7 +143,9 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
 
     next_steps = [{"for": x.id, "step": x.next_step, "evidence_needed": x.evidence_needed}
                   for x in deciding if x.next_step or x.evidence_needed]
-    review_items = [x.id for x in material if x.status != "pass"] + [t["finding"] for t in touching]
+    if verdict == "Conditional":
+        next_steps += [_touch_step(t) for t in touching]
+    review_items = list(dict.fromkeys([x.id for x in material if x.status != "pass"] + [t["finding"] for t in touching]))
     doc = {
         "card": {k: card.get(k) for k in ("id", "title", "intended_use", "group_studied", "outcome",
                                           "acceptable_limitations", "not_acceptable", "out_of_scope")},
@@ -108,9 +154,10 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
         "group_size": len(card_group(release, card)),
         "verdict": verdict,
         "reasons": reasons,
-        "summary": summary(verdict, reasons, next_steps),
+        "summary": summary(verdict, reasons, next_steps, pending),
         "issues": [x.to_dict() | {"rows": x.rows[:50], "row_count": len(x.rows)} for x in issues],
-        "checked_not_material": [x.id for x in issues if not x.material],
+        "checked_not_material": [x.id for x in issues if not x.material and not (x.numbers or {}).get("pending")],
+        "pending_checks": pending,
         "release_changes": touching,
         "robustness": robust,
         "analyses": analyses,
@@ -154,16 +201,19 @@ def _conclusion_issue(r: dict, compared: bool) -> Issue:
                                                              "comparison rerun.")
 
 
-def summary(verdict: str, reasons: list[str], steps: list[dict]) -> str:
-    """One plain-English paragraph a non-specialist can act on."""
+def summary(verdict: str, reasons: list[str], steps: list[dict], pending: list[str] | None = None) -> str:
+    """One plain-English paragraph a non-specialist can act on. Checks that aren't built yet are named, never hidden."""
     lead = {"Ready": "Ready: the data supports this question as stated.",
             "Conditional": "Conditional: usable only with the conditions below, after a person reviews them.",
             "Blocked": "Blocked: this data can't support this question as asked.",
             "Insufficient Evidence": "Insufficient Evidence: the tool can't tell from this release."}[verdict]
+    if verdict == "Ready" and pending:
+        lead = "Ready on the checks that ran, but not fully checked yet."
     shown = [r for r in reasons if not r.startswith("Not built yet")]
     why = " ".join(shown[:3]) + (f" ({len(shown) - 3} more below.)" if len(shown) > 3 else "")
+    pend = f" Not checked yet: {', '.join(pending)}." if pending else ""
     nxt = f" Next step: {steps[0]['step']}" if steps and steps[0]["step"] else ""
-    return f"{lead} {why}{nxt} A person must review the evidence before this data is used."
+    return f"{lead} {why}{pend}{nxt} A person must review the evidence before this data is used."
 
 
 def markdown(doc: dict) -> str:

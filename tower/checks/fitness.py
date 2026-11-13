@@ -9,6 +9,7 @@ the data. Each returns Issues in the shared contract (tower/checks/__init__.py).
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from ..cards import BLANKS, card_group
@@ -30,6 +31,25 @@ DERIVED_FROM = {
 }
 ENDPOINTS = {"OS": "overall survival", "DSS": "disease-specific survival",
              "DFI": "disease-free interval", "PFI": "progression-free interval"}
+SUBTYPE_NAMES = {"LumA": "Luminal A", "LumB": "Luminal B", "Basal": "Basal-like", "Her2": "HER2-enriched",
+                 "Normal": "Normal-like"}
+
+
+def follow_up_months(times, events) -> float:
+    """Median follow-up by the reverse Kaplan-Meier method: being censored is the event, and a death ends follow-up
+    early. Unlike the median observed time, it doesn't count deaths as short follow-up."""
+    t = pd.to_numeric(pd.Series(times), errors="coerce")
+    e = pd.to_numeric(pd.Series(events), errors="coerce")
+    ok = (t.notna() & e.notna()).to_numpy()
+    t, cens = t.to_numpy(float)[ok], (e.to_numpy(float)[ok] == 0)
+    surv = 1.0
+    for u in np.unique(t):
+        at_risk, d = int((t >= u).sum()), int((cens & (t == u)).sum())
+        if at_risk and d:
+            surv *= 1 - d / at_risk
+            if surv <= 0.5:
+                return float(u / 30.44)
+    return float("nan")
 
 
 def _blank(v) -> bool:
@@ -86,15 +106,17 @@ def endpoint_suitability(release, card):
         sub = group
     ev = pd.to_numeric(sv.loc[sub, name], errors="coerce") if sub else pd.Series(dtype=float)
     tm = pd.to_numeric(sv.loc[sub, f"{name}.time"], errors="coerce") if sub else pd.Series(dtype=float)
-    months = float(tm.median() / 30.44) if len(tm.dropna()) else float("nan")
+    months = follow_up_months(tm, ev) if sub else float("nan")
     numbers = {"endpoint": name, "focus_subtype": focus or "all", "samples": len(sub),
                "events": int((ev == 1).sum()), "censored": int((ev == 0).sum()),
-               "median_follow_up_months": round(months, 1)}
+               "median_follow_up_months": round(months, 1), "follow_up_method": "reverse Kaplan-Meier",
+               "median_observed_time_months": round(float(tm.median() / 30.44), 1) if len(tm.dropna()) else None}
+    who = f"{SUBTYPE_NAMES.get(focus, focus)} " if focus else ""
     fields = [f"survival.tsv:{name}", f"survival.tsv:{name}.time", "clinical.tsv:PAM50Call_RNAseq"]
     label = ENDPOINTS[name]
     if name in ("PFI", "DFI"):
         status, title = "pass", (f"{label.capitalize()} is an endpoint the TCGA curators recommend for breast cancer "
-                                 f"({numbers['events']} events in {len(sub)} samples)")
+                                 f"({numbers['events']} events among {len(sub)} {who}tumors)")
         rule = "PFI and DFI were recommended for breast cancer without reservation."
         nxt, need = "", ""
     elif name == "OS" and focus == "LumA":
@@ -115,7 +137,7 @@ def endpoint_suitability(release, card):
     return [Issue(id="endpoint_suitability", title=title, status=status, material=True, pre_existing=True,
                   fields=fields, rows=sub, numbers=numbers, rule=rule, source=CDR,
                   limitation="The recommendation comes from the curators' analysis of all TCGA breast cancers, not a "
-                             "test on this exact group.",
+                             "test on this exact group. Median follow-up uses the reverse Kaplan-Meier method.",
                   next_step=nxt, evidence_needed=need)]
 
 
@@ -153,7 +175,14 @@ def outcome_available(release, card):
     if not reqs:
         return [Issue(id="outcome_available", title="The card lists no special data requirements", status="pass",
                       material=False, pre_existing=False)]
-    cl = release.table("clinical.tsv").frame if release.has("clinical.tsv") else pd.DataFrame()
+    if not release.has("clinical.tsv"):        # can't say a field is absent from a file that can't be read
+        state = "unreadable" if "clinical.tsv" in release.unreadable else "missing"
+        return [Issue(id="outcome_available", title=f"The clinical file is {state}, so the tool can't tell whether "
+                      "this release records what the question needs", status="unknown", material=True,
+                      pre_existing=False, fields=["clinical.tsv"],
+                      rule="A requirement can only be checked against a readable clinical file.",
+                      source="The files in this release", evidence_needed="A release with a readable clinical.tsv.")]
+    cl = release.table("clinical.tsv").frame
     group = sorted(card_group(release, card))
     out = []
     for i, r in enumerate(reqs):

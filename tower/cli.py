@@ -172,7 +172,8 @@ def main(argv=None) -> None:
         release = args.release or raw
         ids = [c["id"] for c in list_cards()] if args.card == "all" else [args.card]
         for cid in ids:
-            run_check(cid, release, args.against, pathlib.Path(args.out_dir) / f"{cid}.json",
+            run_check(cid, release, args.against or (raw if args.release else None),
+                      pathlib.Path(args.out_dir) / f"{cid}.json",
                       allow_missing=args.allow_missing_checks)
         return
 
