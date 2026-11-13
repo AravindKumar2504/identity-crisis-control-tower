@@ -1,0 +1,12 @@
+{
+ "name": "t02_dup_mutation",
+ "seed": 1001,
+ "changes": [
+  {
+   "type": "replace_with_duplicates",
+   "file": "mutation_gene_level.tsv.gz",
+   "count": 3,
+   "subtype": "Basal"
+  }
+ ]
+}

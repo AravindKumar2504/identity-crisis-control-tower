@@ -1,0 +1,11 @@
+{
+ "name": "t01_swap_cn",
+ "seed": 1000,
+ "changes": [
+  {
+   "type": "swap_samples",
+   "file": "copy_number_gistic.tsv.gz",
+   "count": 1
+  }
+ ]
+}

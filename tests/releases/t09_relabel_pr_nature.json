@@ -1,0 +1,13 @@
+{
+ "name": "t09_relabel_pr_nature",
+ "seed": 1008,
+ "changes": [
+  {
+   "type": "relabel_clinical",
+   "file": "clinical.tsv",
+   "column": "PR_Status_nature2012",
+   "new_value": "Positive",
+   "count": 10
+  }
+ ]
+}

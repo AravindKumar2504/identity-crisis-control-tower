@@ -1,0 +1,13 @@
+{
+ "name": "t03_relabel_er",
+ "seed": 1002,
+ "changes": [
+  {
+   "type": "relabel_clinical",
+   "file": "clinical.tsv",
+   "column": "breast_carcinoma_estrogen_receptor_status",
+   "new_value": "Negative",
+   "count": 10
+  }
+ ]
+}

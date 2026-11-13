@@ -1,0 +1,12 @@
+{
+ "name": "t10_dup_protein_basal",
+ "seed": 1009,
+ "changes": [
+  {
+   "type": "replace_with_duplicates",
+   "file": "protein_rppa.tsv.gz",
+   "count": 10,
+   "subtype": "Basal"
+  }
+ ]
+}

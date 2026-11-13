@@ -1,0 +1,12 @@
+{
+ "name": "t07_swap_protein_same",
+ "seed": 1006,
+ "changes": [
+  {
+   "type": "swap_samples",
+   "file": "protein_rppa.tsv.gz",
+   "count": 3,
+   "opposite_er": false
+  }
+ ]
+}

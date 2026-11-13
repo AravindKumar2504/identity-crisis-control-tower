@@ -1,0 +1,25 @@
+{
+ "name": "t05_combo",
+ "seed": 1004,
+ "changes": [
+  {
+   "type": "swap_samples",
+   "file": "protein_rppa.tsv.gz",
+   "count": 2,
+   "opposite_er": true
+  },
+  {
+   "type": "relabel_clinical",
+   "file": "clinical.tsv",
+   "column": "PAM50Call_RNAseq",
+   "new_value": "LumB",
+   "count": 5
+  },
+  {
+   "type": "replace_with_duplicates",
+   "file": "copy_number_gistic.tsv.gz",
+   "count": 2,
+   "subtype": "Her2"
+  }
+ ]
+}

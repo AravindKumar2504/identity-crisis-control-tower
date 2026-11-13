@@ -1,0 +1,13 @@
+{
+ "name": "t04_relabel_pam50",
+ "seed": 1003,
+ "changes": [
+  {
+   "type": "relabel_clinical",
+   "file": "clinical.tsv",
+   "column": "PAM50Call_RNAseq",
+   "new_value": "Basal",
+   "count": 8
+  }
+ ]
+}

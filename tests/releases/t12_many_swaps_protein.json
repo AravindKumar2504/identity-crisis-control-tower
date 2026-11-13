@@ -1,0 +1,12 @@
+{
+ "name": "t12_many_swaps_protein",
+ "seed": 1011,
+ "changes": [
+  {
+   "type": "swap_samples",
+   "file": "protein_rppa.tsv.gz",
+   "count": 6,
+   "opposite_er": true
+  }
+ ]
+}

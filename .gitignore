@@ -14,7 +14,7 @@ venv/
 
 # Data stays out of the repo (fetched from the source, not committed)
 data/raw/
-releases/
+/releases/
 envelopes/opened/
 *.tsv
 *.tsv.gz

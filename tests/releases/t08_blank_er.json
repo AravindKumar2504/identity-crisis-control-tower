@@ -1,0 +1,13 @@
+{
+ "name": "t08_blank_er",
+ "seed": 1007,
+ "changes": [
+  {
+   "type": "relabel_clinical",
+   "file": "clinical.tsv",
+   "column": "breast_carcinoma_estrogen_receptor_status",
+   "new_value": "",
+   "count": 6
+  }
+ ]
+}

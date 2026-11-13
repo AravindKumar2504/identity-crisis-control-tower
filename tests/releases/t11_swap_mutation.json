@@ -1,0 +1,12 @@
+{
+ "name": "t11_swap_mutation",
+ "seed": 1010,
+ "changes": [
+  {
+   "type": "swap_samples",
+   "file": "mutation_gene_level.tsv.gz",
+   "count": 2,
+   "opposite_er": true
+  }
+ ]
+}
