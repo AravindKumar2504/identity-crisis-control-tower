@@ -11,7 +11,7 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 - A terminal is open in `identity-crisis-control-tower` with the venv on, and `python -m tower doctor` ends with "Ready for the sealed envelope."
 - The browser is zoomed so all 8 question buttons are visible.
 
-## The script (about 380 words, roughly 152 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
+## The script (about 390 words, roughly 156 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
 
 ### 0:00 Hook (20 s) · screen: the verdict card
 
@@ -25,7 +25,7 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 
 > Only A1 reads those samples, so only A1 is rerun: the ER-alpha difference moves from 3.051 to 3.019. A2, the subtype mix, is left alone, because nothing it reads changed.
 >
-> So does the conclusion still hold? Yes. The 95 percent range is 2.835 to 3.179, well above zero. The verdict is Conditional, and each change comes with a next step: restore the swapped profiles, exclude the copies, and ask the provider why the samples were removed.
+> So does the conclusion still hold? Yes, with room to spare: it survives 61 worst-case swaps between ER groups, and this release made one. The verdict is Conditional, and each change comes with a next step: restore the swapped profiles, exclude the copies, and ask the provider why the samples were removed.
 >
 > *[point at "What this can't tell you" under the verdict]* And it says what it can't tell you: which release labels the swapped samples correctly.
 
@@ -55,7 +55,7 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
 
 ### 2:50 Close (10 s)
 
-> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about two seconds each. Hand us the envelope, or your own research question.
+> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about two seconds each. Hand us the envelope, plant your own errors, or ask your own research question.
 
 **If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
@@ -82,6 +82,10 @@ Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the scree
    cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/E<two digits>/release --challenge ../oncosys-hackathon-challenge
    ```
 
+## If a judge doubts the results: Fool the Tower
+
+Open the **🎯 Fool the Tower** tab and let the judge pick errors: how many swaps, copies and changed labels, and in which file. Click **Plant these errors and let the tool look**. The organizers' own generator builds that release (about 8 seconds), the tool looks for the errors without the answer key, and the score appears (for example, found 14 of 14 planted samples, 0 false alarms). **Open the planted release on the screen** shows its verdicts on every question.
+
 ## If a judge gives us a different research question
 
 The Track 1 warm-up says judges may change the question. Open **Ask your own question** in the sidebar, pick the closest kind (survival by subtype, a protein between groups, a prediction model, or response to a treatment), click **Judge this question**, and read the verdict and its first reason aloud. The question joins the board, so you can click back to any earlier one. If it fits no kind, say which data the release has and which kind comes closest.
@@ -91,6 +95,7 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 - **How do you know it's right?** We have 20 of 20 test releases. Thirteen were made with the organizers' own generator and graded against its answer keys. We built the other seven, each with its answer written first (`python scripts/scorecard.py ../oncosys-hackathon-challenge/data/tcga-brca/releases`). And you can check any finding yourself: open "Before and after" under it to see the values move, or the Analyses tab, where the organizers' own script gives the same numbers.
 - **What about a change you never planned for?** Any changed value shows up in a fingerprint. If it isn't a swap, a copy or a loss, it's reported as an edit, with every sample named.
 - **Why Blocked, not a warning?** Even with perfect files, this data can't support that question. A warning would let someone publish a Luminal A survival result from under three years of follow-up.
+- **What's the error budget?** How many worst-case errors of each kind (swaps, wrong labels, copies) the answer survives before its 95% range touches zero, and how many this release made. On the practice envelope: 61 swaps between ER groups, and the release made one.
 - **What if I change the question?** Ask it in the sidebar form: the same written rules judge it, with the same sources and next steps.
 - **Is AI making these calls?** No. Every verdict comes from a written rule with a cited source, and a person signs off.
 - **Clinical use?** No. It's for research only: no diagnosis, no treatment advice, no risk scores.

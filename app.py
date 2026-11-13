@@ -29,6 +29,7 @@ from tower.questions import (ENDPOINTS, FEATURES, GROUPINGS, LABELS, SUBTYPES, T
                              model_question, protein_question, survival_question, treatment_question)
 from tower.diff import compare  # noqa: E402
 from tower.evidence import before_after  # noqa: E402
+from tower.plant import plant, score  # noqa: E402
 from tower.findings import build  # noqa: E402
 from tower.readiness import assess  # noqa: E402
 from tower.release import ROW_FILES, load_release  # noqa: E402
@@ -99,6 +100,8 @@ st.markdown("""
 .ct-cant {border:1px dashed #94A3B8; background:#F8FAFC; border-radius:12px; padding:10px 14px; margin-top:10px;
           font-size:.86rem; color:#334155;}
 .ct-cant .it {margin:3px 0;}
+.ct-budget {margin-top:10px; padding:8px 12px; border-radius:10px; background:#ECFDF5; border:1px solid #A7F3D0;
+            font-size:.86rem; color:#065F46;}
 .ct-guide {display:flex; gap:10px; flex-wrap:wrap; margin:-.3rem 0 1rem;}
 .ct-guide .g {display:flex; align-items:center; gap:8px; background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px;
               padding:4px 14px 4px 4px; font-size:.82rem; color:#33495A;}
@@ -141,6 +144,10 @@ def release_options() -> dict[str, str | None]:
     for p in sorted((CHALLENGE / "data" / "tcga-brca" / "releases").glob("*")):
         if p.is_dir():
             opts[f"Test release {p.name}"] = str(p)
+    planted = sorted((REPO / "out" / "fool").glob("planted-*"), key=lambda q: q.stat().st_mtime)[-5:]
+    for p in planted:
+        if p.is_dir():
+            opts[f"Planted release {p.name.split('-', 1)[1]}"] = str(p)
     return opts
 
 
@@ -247,6 +254,17 @@ def add_question(card: dict) -> None:
     st.session_state["card_title"] = card["title"]
 
 
+FOOL_FILES = {"protein_rppa.tsv.gz": "protein (RPPA)", "copy_number_gistic.tsv.gz": "copy number",
+              "mutation_gene_level.tsv.gz": "gene mutations"}
+FOOL_LABELS = {"ER status": ("breast_carcinoma_estrogen_receptor_status", ["Negative", "Positive"]),
+               "PR status": ("breast_carcinoma_progesterone_receptor_status", ["Negative", "Positive"]),
+               "PAM50 subtype": ("PAM50Call_RNAseq", ["LumB", "LumA", "Basal", "Her2"])}
+
+
+def open_release(label: str) -> None:
+    st.session_state["pending_release"] = label
+
+
 def pick(title: str) -> None:
     st.session_state["card_title"] = title
 
@@ -258,10 +276,11 @@ with st.sidebar:
     st.markdown("**1 · The data**")
     opts = release_options()
     labels = list(opts)
-    default = st.session_state.get("release_label", labels[1] if len(labels) > 1 else labels[0])
-    release_label = st.selectbox("New release to check against release A", labels,
-                                 index=labels.index(default) if default in labels else 0)
-    st.session_state["release_label"] = release_label
+    if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
+        st.session_state["release_label"] = st.session_state.pop("pending_release")
+    if st.session_state.get("release_label") not in labels:
+        st.session_state["release_label"] = labels[1] if len(labels) > 1 else labels[0]
+    release_label = st.selectbox("New release to check against release A", labels, key="release_label")
     with st.expander("Open a sealed envelope"):
         with st.form("envelope"):
             num = st.text_input("Envelope number", placeholder="07 or practice")
@@ -272,7 +291,7 @@ with st.sidebar:
                 st.code((r.stdout + r.stderr)[-1500:])
                 if r.returncode == 0:
                     name = "practice" if num.strip().lower() == "practice" else f"E{int(num.strip().upper().lstrip('E')):02d}"
-                    st.session_state["release_label"] = f"Envelope {name}"
+                    st.session_state["pending_release"] = f"Envelope {name}"
                     st.rerun()
 
     st.markdown("**2 · The research question**")
@@ -391,6 +410,9 @@ left.markdown(f"""
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
   <div class="ct-sum">{esc(ready['summary'])}</div>
 </div>""", unsafe_allow_html=True)
+if ready.get("error_budget"):
+    left.markdown(f'<div class="ct-budget"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
+                  unsafe_allow_html=True)
 if ready.get("cannot_tell"):
     left.markdown('<div class="ct-cant"><div class="ct-eyebrow">What this can\'t tell you</div>'
                   + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"]) + "</div>",
@@ -436,8 +458,9 @@ for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.s
         st.caption(q["verdict"] + (f" · {q['pending']} not checked yet" if q.get("pending") else "")
                    + (" · open" if q["id"] == card["id"] else ""))
 
-tab_why, tab_changed, tab_analyses, tab_trail, tab_review = st.tabs(
-    ["🧭 Why this verdict", "🔀 What changed", "📊 Analyses", "🧬 Evidence trail", "✍️ Review and sign-off"])
+tab_why, tab_changed, tab_analyses, tab_trail, tab_review, tab_fool = st.tabs(
+    ["🧭 Why this verdict", "🔀 What changed", "📊 Analyses", "🧬 Evidence trail", "✍️ Review and sign-off",
+     "🎯 Fool the Tower"])
 
 # ------------------------------------------------------------------------------------------------ why
 with tab_why:
@@ -590,6 +613,18 @@ with tab_analyses:
                     k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
             st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
                        "sampling variation only, not systematic errors such as a mislabelled ER test.")
+    eb = ready.get("error_budget") or {}
+    if eb:
+        with st.container(border=True):
+            st.markdown('<div class="ct-eyebrow">Error budget: how wrong can the data be before the answer changes?</div>'
+                        + f'<span class="ct-small">{esc(eb["conclusion"])}</span>', unsafe_allow_html=True)
+            cols = st.columns(len(eb["items"]))
+            for col, it in zip(cols, eb["items"]):
+                col.metric(f"Worst-case {it['error']} it survives", it["survives"],
+                           delta=None if it["this_release"] is None else f"this release: {it['this_release']}",
+                           delta_color="off")
+            st.markdown(f"**{eb['headline']}**")
+            st.caption(eb["method"])
     if items:
         ref = reference_numbers(b_path or str(RAW))
         with st.container(border=True):
@@ -791,3 +826,58 @@ with tab_review:
             d3.download_button("⬇ findings.json with decisions",
                                json.dumps(with_decisions(findings, state["repairs"], reviewer, role), indent=2),
                                "findings.reviewed.json")
+
+
+# ------------------------------------------------------------------------------------------------ fool the tower
+with tab_fool:
+    st.markdown('<div class="ct-sec">Fool the Tower: plant your own errors</div>', unsafe_allow_html=True)
+    st.caption("Pick some errors. The organizers' own generator (data/tcga-brca/make_release.py) builds a release with "
+               "exactly those changes and writes its answer key. The tool then looks for them without the key, and the "
+               "score compares the two. It only writes under out/fool/.")
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        st.markdown("**Swap samples' data**")
+        n_swap = st.number_input("Pairs to swap", 0, 5, 1, key="fool_swaps")
+        swap_file = st.selectbox("In", list(FOOL_FILES), format_func=FOOL_FILES.get, key="fool_swap_file")
+        opposite = st.checkbox("Across ER groups (the worst kind for A1)", True, key="fool_opposite")
+    with f2:
+        st.markdown("**Copy profiles over samples**")
+        n_copy = st.number_input("Copies", 0, 10, 2, key="fool_copies")
+        copy_file = st.selectbox("In ", list(FOOL_FILES), format_func=FOOL_FILES.get, key="fool_copy_file")
+        subtype = st.selectbox("Replacing tumors of subtype", ["Her2", "Basal", "LumA", "LumB"], key="fool_subtype")
+    with f3:
+        st.markdown("**Change clinical labels**")
+        n_rel = st.number_input("Labels to change", 0, 10, 3, key="fool_relabels")
+        field = st.selectbox("Field", list(FOOL_LABELS), key="fool_field")
+        new_value = st.selectbox("Set to", FOOL_LABELS[field][1], key="fool_value")
+    if st.button("Plant these errors and let the tool look", type="primary", key="fool_go"):
+        planted = []
+        if n_swap:
+            planted.append({"type": "swap_samples", "file": swap_file, "count": int(n_swap), "opposite_er": bool(opposite)})
+        if n_copy:
+            planted.append({"type": "replace_with_duplicates", "file": copy_file, "count": int(n_copy), "subtype": subtype})
+        if n_rel:
+            planted.append({"type": "relabel_clinical", "file": "clinical.tsv", "column": FOOL_LABELS[field][0],
+                            "new_value": new_value, "count": int(n_rel)})
+        if not planted:
+            st.warning("Pick at least one error to plant.")
+        else:
+            try:
+                with st.spinner("The organizers' generator is building your release, then the tool looks for the errors..."):
+                    rel, answer = plant(CHALLENGE, planted)
+                    st.session_state["fool"] = {"label": f"Planted release {rel.name.split('-', 1)[1]}",
+                                                **score(CHALLENGE, rel, answer)}
+            except Exception as e:  # e.g. more copies than the subtype has samples in that file
+                st.error(f"The generator couldn't plant that combination ({type(e).__name__}: {e}). Try fewer errors.")
+    res = st.session_state.get("fool")
+    if res:
+        caught = not res["missed"] and not res["false_alarms"]
+        st.markdown(chip("✅ Not fooled" if caught else "⚠️ Partly fooled", "chip-ready" if caught else "chip-cond")
+                    + f"<b>The tool found {res['found']} of the {res['planted_samples']} planted samples, with "
+                    f"{plural(len(res['false_alarms']), 'false alarm')}.</b>", unsafe_allow_html=True)
+        st.dataframe(pd.DataFrame(res["rows"]), hide_index=True, width="stretch")
+        if res["missed"] or res["false_alarms"]:
+            st.caption(f"Missed: {res['missed'][:5]}. False alarms: {res['false_alarms'][:5]}.")
+        st.caption(f"Release check: {res['verdict']}. {res['verdict_reason']}")
+        st.button(f"Open {res['label'].lower()} on the screen", key="fool_open", on_click=open_release,
+                  args=(res["label"],))

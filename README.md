@@ -72,6 +72,10 @@ streamlit run app.py --server.address localhost
 
 Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples, and a before-and-after table of the values behind each one), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
 
+**Error budget** (under the verdict and on the Analyses tab): how wrong the data can get before the answer changes, counted in the errors the tool detects. On release A the ER-alpha answer survives 63 worst-case swaps between ER groups, 125 wrong ER labels or 146 copied profiles, and the screen says how much of that each release used.
+
+**Fool the Tower** (its own tab): plant your own errors (swaps, copies, changed labels) and the organizers' `make_release.py` builds that release; the tool then looks for them without the answer key and is scored against it. Only `out/fool/` is written.
+
 **Ask your own question** (sidebar): build a question from a few choices (survival by subtype, a protein between groups, a prediction model, or response to a treatment). The same rules judge it, it joins the question board, and it can be saved as a card file that `python -m tower check --card <file>` runs too. The form only writes the question down; it never decides a verdict. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
 
 ### Is the data fit for a research question?
@@ -118,6 +122,8 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `tower/cards.py` | Loads research-question cards and works out which samples each question studies |
 | `tower/questions.py` | Builds a card from the choices in the screen's "Ask your own question" form |
 | `tower/evidence.py` | The before-and-after values behind every cited sample |
+| `tower/budget.py` | The error budget: how many worst-case errors an answer survives |
+| `tower/plant.py` | Fool the Tower: plants errors with the organizers' generator and scores the tool |
 | `tower/doctor.py` | `python -m tower doctor`: is this machine ready for the sealed envelope? |
 | `tower/readiness.py` | The verdict (Ready, Conditional, Blocked, Insufficient Evidence), its reasons and the evidence trail |
 | `tower/checks/` | The checks cards run: question-reasoning rules (`fitness.py`) and release A data checks |

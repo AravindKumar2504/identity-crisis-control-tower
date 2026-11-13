@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from .analyses import ANALYSES
+from .analyses import ANALYSES, ER, PAM50, _clinical, _protein
+from .budget import budget as error_budget
 from .cards import card_fields, card_group
 from .checks import Issue, run_checks
 from .diff import Comparison
 from .release import ROW_FILES, Release
-from .robustness import conclusion
+from .robustness import a1_frames, conclusion
 
 # What a release change can't tell anyone, by kind (the same limitations findings.json carries).
 CHANGE_LIMITS = {
@@ -113,6 +114,17 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
         if robust:
             issues.append(_conclusion_issue(robust, bool(cmp)))
     material = [x for x in issues if x.material]
+    eb = {}
+    if set(card.get("analyses") or []) & {"A1", "A2"} and release.has("clinical.tsv"):
+        try:                                     # the error budget is context; it must never break the verdict
+            clin = _clinical(release)
+            f1 = (a1_frames(clin, _protein(release)) if "A1" in card["analyses"] and release.has("protein_rppa.tsv.gz")
+                  else None)
+            c2 = (clin[clin.sampleID.str[13:15] == "01"].dropna(subset=[PAM50])[PAM50].value_counts().to_dict()
+                  if "A2" in card["analyses"] else None)
+            eb = error_budget(card, f1, c2, cmp, touching, clin.set_index("sampleID")[ER].to_dict() if cmp else {})
+        except Exception:
+            eb = {}
 
     verdict, deciding = "Ready", []
     for status, label in ORDER:
@@ -185,6 +197,7 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
         "pending_checks": pending,
         "release_changes": touching,
         "robustness": robust,
+        "error_budget": eb,
         "analyses": analyses,
         "next_steps": next_steps,
         "review": {"required": review_items, "items": [], "signed_off": None},
@@ -257,6 +270,14 @@ def markdown(doc: dict) -> str:
         lines += ["", "## Release changes that touch this question", ""]
         lines += [f"- {t['finding']} ({t['kind']}, {t['file']}): {len(t['samples'])} sample{'' if len(t['samples']) == 1 else 's'}: {t['summary']}"
                   for t in doc["release_changes"]]
+    if doc.get("error_budget"):
+        eb = doc["error_budget"]
+        lines += ["", "## Error budget: how wrong can the data be before the answer changes?", "",
+                  f"Conclusion: {eb['conclusion']}. {eb['headline']}", ""]
+        lines += [f"- Worst-case {it['error']}: survives {it['survives']}"
+                  + (f"; this release made {it['this_release']}" if it["this_release"] is not None else "")
+                  for it in eb["items"]]
+        lines += ["", eb["method"]]
     if doc.get("cannot_tell"):
         lines += ["", "## What this can't tell you", ""] + [f"- {x}" for x in doc["cannot_tell"]]
     if doc["next_steps"]:

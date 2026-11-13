@@ -56,7 +56,7 @@ Over the material issues for the card, in this order: any `block` gives **Blocke
 
 ## 4. `readiness.json` (built)
 
-Written by `python -m tower check --card <id>` (and by `envelope ... --card <id>`). Keys: `card`, `release`, `compared_with`, `group_size`, `verdict`, `reasons`, `summary` (plain English), `issues`, `checked_not_material`, `pending_checks` (listed on a card but not built yet), `release_changes`, `analyses`, `next_steps`, `review` (`required`, `items`, `signed_off`), `lineage` (each conclusion with its rule, source, fields, rows and file fingerprints), `fields_read`, `generated`, `disclaimer`. The screen reads only `findings.json` and `readiness.json`.
+Written by `python -m tower check --card <id>` (and by `envelope ... --card <id>`). Keys: `card`, `release`, `compared_with`, `group_size`, `verdict`, `reasons`, `summary` (plain English), `issues`, `checked_not_material`, `pending_checks` (listed on a card but not built yet), `release_changes`, `analyses`, `next_steps`, `review` (`required`, `items`, `signed_off`), `lineage` (each conclusion with its rule, source, fields, rows and file fingerprints), `fields_read`, `group_samples` (the sample ids the question can use), `cannot_tell` (what the result can't tell you), `error_budget` (worst-case errors the answer survives, and how many this release made), `generated`, `disclaimer`. The screen reads only `findings.json` and `readiness.json`.
 
 ## 5. Checks the cards list
 
