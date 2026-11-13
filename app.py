@@ -26,6 +26,7 @@ from tower.diff import compare  # noqa: E402
 from tower.findings import build  # noqa: E402
 from tower.readiness import assess  # noqa: E402
 from tower.release import ROW_FILES, load_release  # noqa: E402
+from tower.cli import plain_report  # noqa: E402
 from tower.review import (ISSUE_CHOICES, REPAIR_CHOICES, SIGNOFF_CHOICES, missing_decisions, now,  # noqa: E402
                           record_markdown, signed, with_decisions)
 
@@ -86,6 +87,11 @@ st.markdown("""
 .ct-next {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:12px 16px; margin:6px 0;}
 .ct-mono {font-family:'SF Mono', Menlo, Consolas, monospace; font-size:.8rem; color:#33495A;}
 .ct-small {font-size:.82rem; color:#556676;}
+.ct-guide {display:flex; gap:10px; flex-wrap:wrap; margin:-.3rem 0 1rem;}
+.ct-guide .g {display:flex; align-items:center; gap:8px; background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px;
+              padding:4px 14px 4px 4px; font-size:.82rem; color:#33495A;}
+.ct-guide .n {width:22px; height:22px; border-radius:50%; background:#0F766E; color:#FFFFFF; display:inline-flex;
+              align-items:center; justify-content:center; font-weight:800; font-size:.74rem;}
 @media (max-width: 900px) {.ct-steps {grid-template-columns:repeat(2, minmax(0, 1fr));}}
 </style>
 """, unsafe_allow_html=True)
@@ -140,8 +146,15 @@ def membership(cmp) -> list[dict]:
     return rows
 
 
+def inputs_sig() -> tuple:
+    """Changes whenever a card or the tower code changes, so a cached verdict is never stale."""
+    root = pathlib.Path(__file__).resolve().parent
+    return tuple((str(p.relative_to(root)), p.stat().st_mtime_ns)
+                 for p in sorted([*root.glob("cards/*.yaml"), *root.glob("tower/**/*.py")]))
+
+
 @st.cache_data(show_spinner="Checking the release...")
-def analyze(b_path: str | None, card_id: str, allow_missing: bool):
+def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = ()):
     card = load_card(card_id)
     a = load_release(RAW, "release-A")
     if b_path is None:
@@ -151,6 +164,31 @@ def analyze(b_path: str | None, card_id: str, allow_missing: bool):
     results, impact = rerun(a, b, cmp.changes)
     findings = build(cmp, results, impact)
     return findings, assess(card, b, cmp, results, allow_missing=allow_missing), membership(cmp)
+
+
+@st.cache_data(show_spinner="Judging every question on this release...")
+def board(b_path: str | None, allow_missing: bool, sig: tuple = ()) -> list[dict]:
+    """Every question card judged on the same release, so the screen can show that the verdict depends on the question."""
+    a = load_release(RAW, "release-A")
+    rel, cmp, results = a, None, None
+    if b_path is not None:
+        rel = load_release(b_path)
+        cmp = compare(a, rel)
+        results, _ = rerun(a, rel, cmp.changes)
+    out = []
+    for c in list_cards():
+        try:
+            d = assess(c, rel, cmp, results, allow_missing=allow_missing)
+            out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
+                        "verdict": d["verdict"], "reason": d["reasons"][0] if d["reasons"] else ""})
+        except Exception as e:  # one card failing must not hide the others
+            out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
+                        "verdict": "Insufficient Evidence", "reason": f"could not be judged: {e}"})
+    return out
+
+
+def pick(title: str) -> None:
+    st.session_state["card_title"] = title
 
 
 # ------------------------------------------------------------------------------------------------ sidebar
@@ -180,7 +218,9 @@ with st.sidebar:
     st.markdown("**2 · The research question**")
     cards = list_cards()
     titles = {c["title"]: c["id"] for c in cards}
-    card_title = st.selectbox("Question card", list(titles))
+    if st.session_state.get("card_title") not in titles:
+        st.session_state["card_title"] = list(titles)[0]
+    card_title = st.selectbox("Question card", list(titles), key="card_title")
     card = load_card(titles[card_title])
 
     st.markdown("**3 · Reviewer**")
@@ -193,7 +233,7 @@ with st.sidebar:
 # ------------------------------------------------------------------------------------------------ analysis
 b_path = opts[release_label]
 try:
-    findings, ready, members = analyze(b_path, card["id"], allow_missing)
+    findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig())
 except Exception as e:  # never show a stack trace to a judge
     st.error(f"The check couldn't run: {e}")
     st.stop()
@@ -226,6 +266,11 @@ touching = {t["finding"] for t in ready["release_changes"]}
 st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
             '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
             '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="ct-guide">'
+            '<span class="g"><span class="n">1</span>Pick a new release in the sidebar, or open a sealed envelope</span>'
+            '<span class="g"><span class="n">2</span>Read the verdict and why</span>'
+            '<span class="g"><span class="n">3</span>Switch the question below and watch the verdict change</span>'
+            '<span class="g"><span class="n">4</span>Review each fix and sign off</span></div>', unsafe_allow_html=True)
 
 icon, colour, tint, vchip = VERDICT[ready["verdict"]]
 where = "release A" if b_path is None else f"{release_label}, compared with release A"
@@ -263,6 +308,15 @@ steps = [
 st.markdown('<div class="ct-steps">' + "".join(
     f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
     for k, v, sub, s in steps) + "</div>", unsafe_allow_html=True)
+
+st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
+            unsafe_allow_html=True)
+qcols = st.columns(4)
+for i, q in enumerate(board(b_path, allow_missing, inputs_sig())):
+    with qcols[i % 4]:
+        st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
+                  type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"])
+        st.caption(q["verdict"] + (" · open" if q["id"] == card["id"] else ""))
 
 tab_why, tab_changed, tab_analyses, tab_trail, tab_review = st.tabs(
     ["🧭 Why this verdict", "🔀 What changed", "📊 Analyses", "🧬 Evidence trail", "✍️ Review and sign-off"])
@@ -307,6 +361,7 @@ with tab_changed:
                     f'{esc(findings["verdict_reason"])}</span>', unsafe_allow_html=True)
         for n in findings.get("notes", []):
             st.caption(n)
+        st.download_button("⬇ Release notes (plain English)", plain_report(findings), "release_notes.md")
         if members:
             st.markdown('<div class="ct-sec">Same count, different members</div>', unsafe_allow_html=True)
             colors = {"swapped": "#B45309", "copied in": "#B91C1C", "removed": "#6B7280", "new": "#1D4ED8",

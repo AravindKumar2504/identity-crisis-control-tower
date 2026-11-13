@@ -1,5 +1,6 @@
 id: subtype-classifier-rna
 title: Train a model to predict PAM50 subtype from RNA expression
+short_title: Subtype classifier
 intended_use: Train and evaluate a machine-learning classifier that predicts each tumor's PAM50 subtype from its RNA expression profile.
 group_studied: Primary tumors (sample type 01) with RNA data and a PAM50 subtype call.
 outcome: Classifier accuracy against the PAM50Call_RNAseq label, on held-out patients.

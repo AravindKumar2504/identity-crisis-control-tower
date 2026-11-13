@@ -1,5 +1,6 @@
 id: subtype-mix
 title: PAM50 subtype mix of primary tumors (A2)
+short_title: Subtype mix (A2)
 intended_use: Report the share of each PAM50 molecular subtype among primary breast tumors in a cohort description.
 group_studied: Primary tumors (sample type 01) with a PAM50 subtype call.
 outcome: Count and percent of tumors in each PAM50 subtype.

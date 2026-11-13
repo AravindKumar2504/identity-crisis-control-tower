@@ -1,5 +1,6 @@
 id: hormone-therapy-response
 title: Does ER-alpha protein level predict response to hormone therapy?
+short_title: Hormone therapy
 intended_use: Test whether tumors with higher ER-alpha protein responded better to hormone (endocrine) therapy, in a research analysis.
 group_studied: Primary tumors (sample type 01) with protein data.
 outcome: Response to hormone therapy, compared across ER-alpha protein levels.

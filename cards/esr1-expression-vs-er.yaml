@@ -1,5 +1,6 @@
 id: esr1-expression-vs-er
 title: Does ESR1 gene expression agree with clinical ER status?
+short_title: ESR1 vs ER status
 intended_use: Measure how often RNA expression of ESR1 agrees with the clinical ER test, as a data-quality check before a research analysis.
 group_studied: Primary tumors (sample type 01) with RNA data and a clinical ER status of Positive or Negative.
 outcome: ESR1 expression (rna_hiseq.tsv.gz) by clinical ER status, and the share of tumors where they disagree.

@@ -1,5 +1,6 @@
 id: her2-positive-protein
 title: HER2 protein in HER2-positive vs HER2-negative primary tumors
+short_title: HER2 by HER2 status
 intended_use: A descriptive comparison of HER2 protein (RPPA) between primary tumors that are HER2-positive and HER2-negative.
 group_studied: Primary tumors (sample type 01) with protein data and a HER2 status.
 outcome: Mean HER2 protein (the HER2 row of protein_rppa.tsv.gz) by HER2 status.

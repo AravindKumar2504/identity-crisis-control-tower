@@ -1,5 +1,6 @@
 id: er-alpha-by-er
 title: ER-alpha protein in ER-positive vs ER-negative primary tumors (A1)
+short_title: ER-alpha by ER (A1)
 intended_use: A descriptive figure for a research report comparing mean ER-alpha protein (RPPA) between primary tumors that tested ER-positive and ER-negative in the clinic.
 group_studied: Primary tumors (sample type 01) with protein data and a clinical ER status of Positive or Negative.
 outcome: Mean ER-alpha protein (the ERALPHA row of protein_rppa.tsv.gz) in each ER group, and the difference between them.
