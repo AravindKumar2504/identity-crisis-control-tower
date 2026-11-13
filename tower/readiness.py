@@ -17,6 +17,7 @@ from .cards import card_fields, card_group
 from .checks import Issue, run_checks
 from .diff import Comparison
 from .release import ROW_FILES, Release
+from .robustness import conclusion
 
 ORDER = [("block", "Blocked"), ("unknown", "Insufficient Evidence"), ("warn", "Conditional")]
 
@@ -43,8 +44,16 @@ def changes_touching(card: dict, cmp: Comparison) -> list[dict]:
 def assess(card: dict, release: Release, cmp: Comparison | None = None, results: dict | None = None,
            allow_missing: bool = False) -> dict:
     issues = run_checks(release, card, allow_missing=allow_missing)
-    material = [x for x in issues if x.material]
     touching = changes_touching(card, cmp) if cmp else []
+    robust = {}
+    if "A1" in (card.get("analyses") or []):
+        try:
+            robust = conclusion(cmp if cmp else release, sorted({s for t in touching for s in t["samples"]}))
+        except Exception:  # the robustness readout must never break the verdict
+            robust = {}
+        if robust:
+            issues.append(_conclusion_issue(robust, bool(cmp)))
+    material = [x for x in issues if x.material]
 
     verdict, deciding = "Ready", []
     for status, label in ORDER:
@@ -103,6 +112,7 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
         "issues": [x.to_dict() | {"rows": x.rows[:50], "row_count": len(x.rows)} for x in issues],
         "checked_not_material": [x.id for x in issues if not x.material],
         "release_changes": touching,
+        "robustness": robust,
         "analyses": analyses,
         "next_steps": next_steps,
         "review": {"required": review_items, "items": [], "signed_off": None},
@@ -113,6 +123,35 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
                       "A person must review the evidence before this data is used.",
     }
     return doc
+
+
+def _conclusion_issue(r: dict, compared: bool) -> Issue:
+    lo, hi = r["range_95"]
+    if r["status"] == "reversed":
+        status, title = "block", (f"The conclusion reverses: the ER+ minus ER- difference was {r['release_a_difference']} "
+                                  f"in release A and is {r['difference']} now")
+    elif r["status"] == "fragile":
+        status, title = "warn", (f"The conclusion is fragile: the 95% range of the ER+ minus ER- difference "
+                                 f"({lo} to {hi}) includes zero")
+    else:
+        status = "pass"
+        title = f"The conclusion holds: ER+ minus ER- difference {r['difference']} (95% range {lo} to {hi})"
+        if compared:
+            title += (f"; release A {r['release_a_difference']}; without the {r['flagged_samples']} flagged samples "
+                      f"{r['difference_without_flagged']}")
+    return Issue(id="conclusion_holds", title=title, status=status, material=True, pre_existing=False,
+                 fields=["clinical.tsv:breast_carcinoma_estrogen_receptor_status", "protein_rppa.tsv.gz:ERALPHA"],
+                 rows=[], numbers=r,
+                 rule="Holds if the ER+ minus ER- difference is positive and its 95% range (1,000 resamples of the "
+                      "samples) stays above zero; fragile if the range includes zero; reverses if its sign flips "
+                      "between releases.",
+                 source="Resampling of this release's samples; A1 computed as in the organizers' reference_analyses.py",
+                 limitation="The range covers sampling variation only; it can't see systematic errors such as a "
+                            "mislabelled ER test.",
+                 next_step="" if status == "pass" else "Don't report this comparison from this release until the "
+                                                       "flagged samples are resolved.",
+                 evidence_needed="" if status == "pass" else "The flagged samples confirmed or restored, and the "
+                                                             "comparison rerun.")
 
 
 def summary(verdict: str, reasons: list[str], steps: list[dict]) -> str:

@@ -14,7 +14,9 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 - On the organizers' practice envelope it reports the same swap, the same five copies with their sources, the same five lost samples and the same A1 result (3.051 to 3.019) as the organizers' reference output, and its file passes `format/validate.py`. Unsealing plus checking takes about 2 seconds.
 - Scorecard: 13 test releases built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). Every planted sample found, nothing extra reported, every release checked in about a second.
 - Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, ER-alpha by ER status is Ready on release A and Conditional on the practice envelope; ESR1 expression vs ER status becomes Insufficient Evidence because the envelope has no RNA).
-- Next: release A data checks (in progress), the review and sign-off screen. Plan: [docs/PLAN.md](docs/PLAN.md).
+- Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, so severity rests on a number (on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium). For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
+- The review and sign-off screen works (`streamlit run app.py`).
+- Next: release A data checks (in progress). Plan: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
 

@@ -341,7 +341,10 @@ with tab_changed:
                         + chip(f"confidence {f['confidence']}", "chip-muted")
                         + chip(f"{len(samples)} sample(s)", "chip-muted")
                         + "".join(chip(f"affects {a}", "chip-teal") for a in f["affects_analyses"])
-                        + (chip("touches this question", "chip-cond") if f["id"] in touching else ""))
+                        + (chip("touches this question", "chip-cond") if f["id"] in touching else "")
+                        + "".join(chip(f"own effect on {aid}: {v['change']:+} ({v['relative_pct']}%)" if aid == "A1"
+                                       else f"own effect on {aid}: {v['change']} points", "chip-muted")
+                                  for aid, v in (f.get("effect") or {}).items()))
                 st.markdown(head, unsafe_allow_html=True)
                 what, _, why = f["summary"].partition(" Why it matters: ")
                 st.markdown(what)
@@ -386,6 +389,22 @@ with tab_analyses:
     else:
         items = [(aid, aid, a["status"], "run on release A", a.get("result") or {}, None)
                  for aid, a in ready["analyses"].items()]
+    rob = ready.get("robustness") or {}
+    if rob:
+        lab, cls = {"holds": ("✅ The conclusion holds", "chip-ready"), "fragile": ("⚠️ The conclusion is fragile", "chip-cond"),
+                    "reversed": ("⛔ The conclusion reverses", "chip-block")}[rob["status"]]
+        with st.container(border=True):
+            st.markdown('<div class="ct-eyebrow">Does the conclusion still hold?</div>' + chip(lab, cls)
+                        + f'<span class="ct-small">{esc(rob["claim"])}</span>', unsafe_allow_html=True)
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("ER+ minus ER- difference", rob["difference"],
+                      delta=round(rob["difference"] - rob["release_a_difference"], 3) if rob.get("release_a_difference") is not None else None)
+            k2.metric("95% range (1,000 resamples)", f"{rob['range_95'][0]} to {rob['range_95'][1]}")
+            if rob.get("release_a_difference") is not None:
+                k3.metric("Release A", rob["release_a_difference"])
+                k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
+            st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
+                       "sampling variation only, not systematic errors such as a mislabelled ER test.")
     if not items:
         st.info("This question depends on no protected analysis.")
     for aid, title, status, reason, before, after in items:
