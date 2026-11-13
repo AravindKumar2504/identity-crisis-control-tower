@@ -106,6 +106,10 @@ def esc(x) -> str:
     return html.escape(str(x))
 
 
+def plural(k: int, word: str) -> str:
+    return f"{k} {word}{'' if k == 1 else 's'}"
+
+
 def chip(text: str, cls: str) -> str:
     return f'<span class="chip {cls}">{esc(text)}</span>'
 
@@ -191,6 +195,19 @@ def board(b_path: str | None, allow_missing: bool, sig: tuple = ()) -> list[dict
             out.append({"id": c["id"], "title": c["title"], "short": c.get("short_title", c["title"]),
                         "verdict": "Insufficient Evidence", "reason": f"could not be judged: {e}", "pending": 0})
     return out
+
+
+@st.cache_data(show_spinner="Running the organizers' reference script...")
+def reference_numbers(path: str) -> dict:
+    """The organizers' own data/tcga-brca/reference_analyses.py on the same release, for a side-by-side check."""
+    script = CHALLENGE / "data" / "tcga-brca" / "reference_analyses.py"
+    try:
+        r = subprocess.run([sys.executable, str(script), path], capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            return {"error": (r.stderr or r.stdout).strip()[-300:]}
+        return {x["analysis"]: x for x in json.loads(r.stdout)}
+    except Exception as e:  # the comparison is a convenience; it must never break the screen
+        return {"error": f"{type(e).__name__}: {e}"[:300]}
 
 
 def pick(title: str) -> None:
@@ -425,7 +442,7 @@ with tab_changed:
                 head = (f'<b>{esc(f["id"])} · {esc(KIND.get(f["kind"], f["kind"]))}</b> &nbsp;'
                         + chip(f"severity {f['severity']}", SEVERITY.get(f["severity"], "chip-muted"))
                         + chip(f"confidence {f['confidence']}", "chip-muted")
-                        + chip(f"{len(samples)} sample(s)", "chip-muted")
+                        + chip(plural(len(samples), "sample"), "chip-muted")
                         + "".join(chip(f"affects {a}", "chip-teal") for a in f["affects_analyses"])
                         + (chip("touches this question", "chip-cond") if f["id"] in touching else "")
                         + "".join(chip(f"own effect on {aid}: {v['change']:+} ({v['relative_pct']}%)" if aid == "A1"
@@ -437,7 +454,7 @@ with tab_changed:
                 if why:
                     st.markdown(f"**Why it matters:** {why}")
                 st.caption(f"Limitation: {f['limitation']}")
-                with st.expander(f"Evidence: {len(f['evidence'])} pointer(s)"):
+                with st.expander(f"Evidence: {plural(len(f['evidence']), 'pointer')}"):
                     st.dataframe(pd.DataFrame([{"Sample": e["id"], "Release": e.get("release"), "File": e.get("file"),
                                                 "Note": e.get("note")} for e in f["evidence"]]),
                                  hide_index=True, width="stretch")
@@ -492,6 +509,35 @@ with tab_analyses:
                     k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
             st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
                        "sampling variation only, not systematic errors such as a mislabelled ER test.")
+    if items:
+        ref = reference_numbers(b_path or str(RAW))
+        with st.container(border=True):
+            st.markdown('<div class="ct-eyebrow">Check it yourself: the organizers\' own script on the same release</div>',
+                        unsafe_allow_html=True)
+            if "error" in ref:
+                st.caption(f"The organizers' reference script couldn't run here: {ref['error']}")
+            else:
+                rows = []
+                for aid, _title, _status, _reason, before, after in items:
+                    ours, theirs = (after or before or {}), ref.get(aid, {})
+                    if aid == "A1":
+                        pairs = [("ER+ minus ER- difference", ours.get("difference"), theirs.get("difference")),
+                                 ("Samples", ours.get("n_samples"), theirs.get("n_samples"))]
+                    else:
+                        pairs = [("Samples", ours.get("n_samples"), theirs.get("n_samples")),
+                                 ("Subtype counts", ", ".join(f"{k} {v}" for k, v in sorted((ours.get("counts") or {}).items())),
+                                  ", ".join(f"{k} {v}" for k, v in sorted((theirs.get("counts") or {}).items())))]
+                    rows += [{"Analysis": aid, "Number": n, "This tool": str(o), "Organizers' script": str(r),
+                              "Match": "✅ same" if o == r else "❌ different"} for n, o, r in pairs]
+                st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+                target = pathlib.Path(b_path) if b_path else RAW
+                try:
+                    arg = str(target.resolve().relative_to(CHALLENGE.resolve()))
+                except ValueError:
+                    arg = str(target)
+                st.code(f"python data/tcga-brca/reference_analyses.py {arg}", language="bash")
+                st.caption("Run this from the challenge repo to reproduce these numbers without our tool. For an analysis "
+                           "this tool left alone, its number for the new release is release A's, and the script confirms it.")
     if not items:
         st.info("This question depends on no protected analysis.")
     for aid, title, status, reason, before, after in items:
@@ -529,7 +575,7 @@ def blast_radius() -> str:
         for f in findings["findings"]:
             sev = {"high": "#FDE7E7", "medium": "#FFF3DC"}.get(f["severity"], "#F1F4F6")
             n = sum(1 for e in f["evidence"] if e["kind"] == "sample")
-            g.append(f'{f["id"]} [label="{f["id"]} {KIND.get(f["kind"], f["kind"])}\\n{n} sample(s)", fillcolor="{sev}"];')
+            g.append(f'{f["id"]} [label="{f["id"]} {KIND.get(f["kind"], f["kind"])}\\n{plural(n, 'sample')}", fillcolor="{sev}"];')
             file = next((e.get("file") for e in f["evidence"] if e.get("file")), None)
             if file:
                 files.add(file)
@@ -586,7 +632,7 @@ with tab_review:
         with st.container(border=True):
             st.markdown(f"<b>{esc(r['id'])} · {esc(ACTION.get(r['action'], r['action']))}</b> &nbsp;"
                         + chip(f"for {', '.join(r['addresses'])}", "chip-muted")
-                        + chip(f"{len(r['targets'])} target(s)", "chip-muted"), unsafe_allow_html=True)
+                        + chip(plural(len(r["targets"]), "target"), "chip-muted"), unsafe_allow_html=True)
             st.markdown(r["justification"])
             st.segmented_control(f"Decision for {r['id']}", REPAIR_CHOICES, key=f"{ctx}|rep|{r['id']}",
                                  disabled=not (reviewer and role),

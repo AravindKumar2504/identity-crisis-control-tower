@@ -40,7 +40,7 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 |---|---|---|
 | ER-alpha protein, ER-positive vs ER-negative primary tumors (A1) | Ready (Conditional when a release changes its samples) | Names every changed sample, shows before and after, says whether the conclusion still holds |
 | PAM50 subtype mix of primary tumors (A2) | Conditional | The two subtype columns disagree on 52 of 508 tumors (10.2%); 257 primary tumors (23%) have no subtype |
-| Overall survival by subtype, Luminal A focus | Blocked | Median follow-up 27.7 months with 151 deaths among 1,097 tumors; the TCGA survival resource (Liu et al., Cell 2018) advises against overall survival for Luminal A; 13 tumors with zero follow-up; 5 redacted tumors still carry survival values; 135 patients have duplicated survival rows (tumor + normal) |
+| Overall survival by subtype, Luminal A focus | Blocked | Median follow-up 31.3 months (reverse Kaplan-Meier) with 151 deaths among 1,096 primary tumors, and 35.4 months for Luminal A; the TCGA survival resource (Liu et al., Cell 2018) advises against overall survival for Luminal A; 13 tumors with zero follow-up; 5 redacted tumors still carry survival values; 135 patients have duplicated survival rows (tumor + normal) |
 | Same question with progression-free interval, one row per patient | Conditional | PFI is recommended without reservation (145 events); the remaining caveats are listed |
 | Train a subtype classifier from RNA | Blocked | The subtype label was computed from RNA (circular); 9 columns leak the label; the envelope has no RNA |
 | Response to hormone therapy by ER-alpha level | Blocked | The release has no treatment or response data |
@@ -49,7 +49,7 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 
 ## Problems already in release A (verified, for the readiness report)
 
-- One person under two IDs: TCGA-AN-A0FE and TCGA-AN-A0FG (TCGA redaction 2010, "Identical subject"); both still in `clinical.tsv`.
+- One person under two IDs: TCGA-AN-A0FE and TCGA-AN-A0FG (TCGA redaction 2010, "Identical subject"); both still in `clinical.tsv`. The tool doesn't report it: neither sample is in any analysis, and the fact comes from outside annotations (RULES.md: don't link records to outside sources about individuals).
 - Two subtype columns (`PAM50Call_RNAseq`, `PAM50_mRNA_nature2012`) disagree on 52 of 508 tumors. The two ER columns agree on all 780 (do **not** report an ER conflict).
 - Survival: 6 rows marked Redacted (5 tumors still carry values), 13 tumors with zero follow-up, 135 patients with identical tumor and normal survival rows, OS events disagree with `OS_event_nature2012` for 28 of 816.
 - Requiring protein data shifts the hospital (tissue source site) mix: total variation distance 0.137.
@@ -60,12 +60,12 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 
 | Priority | Piece | Owner | Status / done when |
 |---|---|---|---|
-| P0 | Release diff (all 5 files), A1/A2 rerun, `findings.json`, envelope command | Aravind | **Done** (Fri 1 AM): matches the organizers' reference output on the practice envelope in about 2 s; scorecard 13/13 |
+| P0 | Release diff (all 5 files), A1/A2 rerun, `findings.json`, envelope command | Aravind | **Done**: matches the organizers' reference output on the practice envelope in about 2 s; scorecard 20/20, plus 481 random releases from the organizers' generator (README) |
 | P0 | README quick start | Aravind | **Done**; Chirag confirms it from a fresh clone |
 | P0 | Scorecard: generated releases, answer keys written by the organizers' generator, no-change release | Aravind | **Done**: `scripts/scorecard.py`, configs in `tests/releases/` |
-| P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | Each card gives its expected verdict with reasons |
+| P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | **Done** (Fri): 8 cards with verdicts, reasons, next steps and the evidence trail |
 | P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti | Each check returns `Issue`s (`tower/checks/`, docs/CONTRACTS.md) with evidence rows and a source |
-| P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | A judge finishes the workflow without us talking |
+| P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): question board, review and sign-off. Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group |
 | P2 | README polish, demo video, 3-minute pitch built on docs/USER.md | Madhu | Rehearsed under 3 minutes |
 | P2 | Optional: type a question in plain English, get an editable draft card (local model) | Chirag | Only if everything above is done |
@@ -100,9 +100,11 @@ Clone this repo **next to** the challenge repo (same parent folder).
 
 ## The 3-minute demo
 
-1. Hook (20 s): TCGA once enrolled the same patient twice under two IDs, and the frozen release still lists both. Would your pipeline notice?
-2. New release (60 s): same 1,247 samples, different members. Every changed sample named; only the affected analysis rerun; the conclusion holds or doesn't, with the numbers.
-3. Change the question (60 s): overall survival in Luminal A is Blocked, with the source; switch to progression-free interval and it becomes Conditional.
+The full script, with timings, clicks and the envelope steps, is in [DEMO.md](DEMO.md).
+
+1. Hook (20 s): same files, same 747 protein samples, but two swapped, five copied and five gone. A row count sees nothing.
+2. New release (60 s): every changed sample named; the lost ones are all HER2-enriched; only A1 rerun, A2 left alone; the conclusion holds, with the numbers.
+3. Change the question (60 s): overall survival in Luminal A is Blocked, with the source; switch to progression-free interval and the block is gone.
 4. Review (30 s): a person approves or rejects each fix and signs off; the evidence trail exports with it.
 5. Close (10 s): the scorecard.
 

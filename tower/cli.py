@@ -62,7 +62,7 @@ def print_summary(doc: dict, out: pathlib.Path, elapsed: float) -> None:
     for f in doc["findings"]:
         n = sum(1 for e in f["evidence"] if e["kind"] == "sample")
         aff = ", ".join(f["affects_analyses"]) or "none"
-        print(f"  {f['id']} {f['kind']:<17} {f['severity']:<6} {n:>3} sample(s)  affects: {aff}")
+        print(f"  {f['id']} {f['kind']:<17} {f['severity']:<6} {n:>3} {'sample ' if n == 1 else 'samples'}  affects: {aff}")
     for a in doc["analyses"]:
         b, af = a.get("before") or {}, a.get("after") or {}
         if a["id"] == "A1" and af:

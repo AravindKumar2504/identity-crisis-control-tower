@@ -12,10 +12,10 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 
 - Release comparison, A1/A2 reruns, `findings.json` and the sealed-envelope command work.
 - On the organizers' practice envelope it reports the same swap, the same five copies with their sources, the same five lost samples and the same A1 result (3.051 to 3.019) as the organizers' reference output, and its file passes `format/validate.py`. Unsealing plus checking takes about 2 seconds.
-- Scorecard: 20 of 20 test releases pass. 13 are built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). 7 more test changes their generator can't make: edited values, a removed protein row, edited survival outcomes, a renamed sample id, and three damaged releases (a truncated file, a comma-separated file and an empty file), which are refused with Insufficient Evidence instead of crashing. Their answers are written into `EXPECTED.json` when each release is built, before the tool runs. Every planted sample found, nothing extra reported, about a second per release.
+- Scorecard: 20 of 20 test releases pass. 13 are built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). 7 more test changes their generator can't make: edited values, a removed protein row, edited survival outcomes, a renamed sample id, and three damaged releases (a truncated file, a comma-separated file and an empty file), which are refused with Insufficient Evidence instead of crashing. Their answers are written into `EXPECTED.json` when each release is built, before the tool runs. Every planted sample found, nothing extra reported, about a second per release. We also built 481 releases with the organizers' generator at random settings: 476 match its answer keys exactly. In four of the other five, the answer key lists a change that left no trace in the data (a copy that a later change deleted, or a value changed and then changed back); the fifth is a copy whose original was later removed, which the tool reports as a rename.
 - Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, ER-alpha by ER status is Ready on release A and Conditional on the practice envelope; ESR1 expression vs ER status becomes Insufficient Evidence because the envelope has no RNA).
 - Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, so severity rests on a number (on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium). For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
-- The review and sign-off screen works (`streamlit run app.py`).
+- The review and sign-off screen works (`streamlit run app.py`). A question board shows the verdict for every research question on the same release, and the Analyses tab runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Next: release A data checks (in progress). Plan: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
@@ -58,7 +58,7 @@ Add `--card all` to also judge every research-question card against the envelope
 streamlit run app.py --server.address localhost
 ```
 
-Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject), then signs off. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
+Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question. The screen shows the verdict and a plain-English summary, why (every check), what changed (every finding with its samples), the analyses rerun, and the evidence trail. In **Review and sign-off**, a reviewer approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
 
 ### Is the data fit for a research question?
 
@@ -69,7 +69,7 @@ python -m tower cards
 python -m tower check --card os-luminal-a
 ```
 
-Each card states the intended use, the group studied, the outcome and the acceptable limitations. The tool returns Ready, Conditional, Blocked or Insufficient Evidence with the reasons, the next step, and the evidence trail (fields, every sample involved, file fingerprints), in `out/readiness/<card>.json` and `.md`. Add `--release <folder> --against <release A folder>` to judge a new release and include the release changes that touch the question. Until every check is built, add `--allow-missing-checks` to list unbuilt checks as pending.
+Each card states the intended use, the group studied, the outcome and the acceptable limitations. The tool returns Ready, Conditional, Blocked or Insufficient Evidence with the reasons, the next step, and the evidence trail (fields, every sample involved, file fingerprints), in `out/readiness/<card>.json` and `.md`. Add `--release <folder>` to judge a new release: it is compared with release A (or the folder given with `--against`), so the release changes that touch the question are included. Until every check is built, add `--allow-missing-checks` to list unbuilt checks as pending.
 
 ### Compare any two releases
 
@@ -110,17 +110,23 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `app.py` | The review screen (Streamlit) |
 | `tests/releases/` | Configs for the scorecard's test releases |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
-| `docs/` | Team plan and user research |
+| `docs/` | Team plan, user research, contracts and the demo script |
+| `examples/practice/` | The tool's output on the organizers' practice envelope: `findings.json` (passes their validator) and the plain-English `report.md` |
 
 ## Data and credits
 
-Judged results use the event's frozen TCGA-BRCA release, fetched with the challenge repo's `data/tcga-brca/fetch.py` and checked against its published checksums. No raw TCGA files are committed here. Data credits: `DATA_LICENSES.md` in the [challenge repo](https://github.com/disleveK/oncosys-hackathon-challenge).
+Judged results use the event's frozen TCGA-BRCA release, fetched with the challenge repo's `data/tcga-brca/fetch.py` and checked against its published checksums. No raw TCGA files are committed here. Data credits, as `DATA_LICENSES.md` in the [challenge repo](https://github.com/disleveK/oncosys-hackathon-challenge) asks:
+
+- TCGA: "The results shown here are in whole or part based upon data generated by the TCGA Research Network: https://www.cancer.gov/tcga."
+- UCSC Xena: Goldman, M.J. et al. Visualizing and interpreting cancer genomics data via the Xena platform. *Nat Biotechnol* 38, 675-678 (2020).
+- Survival data: Liu, J. et al. An Integrated TCGA Pan-Cancer Clinical Data Resource to Drive High-Quality Survival Outcome Analytics. *Cell* 173, 400-416 (2018). The tool's endpoint rules cite this paper too.
+- PAM50 (cited by the tool's model-design rule): Parker, J.S. et al. Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes. *J Clin Oncol* 27, 1160-1167 (2009).
 
 The data is de-identified but patient-derived: research use only. This tool makes no diagnosis, treatment recommendation, risk score or clinical claim, and every finding asks a person to review it.
 
 ## Third-party code
 
-No third-party code is copied into this repo. At run time the tool calls the organizers' `envelopes/unseal.py` and `format/validate.py` from the challenge repo. Libraries: pandas (BSD-3-Clause), NumPy (BSD-3-Clause), jsonschema (MIT), cryptography (Apache-2.0 or BSD-3-Clause, used by `unseal.py`).
+No third-party code is copied into this repo. At run time the tool calls the organizers' `envelopes/unseal.py` and `format/validate.py` from the challenge repo. Libraries: pandas (BSD-3-Clause), NumPy (BSD-3-Clause), jsonschema (MIT), PyYAML (MIT), Streamlit (Apache-2.0, the review screen), Altair (BSD-3-Clause, charts, installed with Streamlit), cryptography (Apache-2.0 or BSD-3-Clause, used by `unseal.py`).
 
 ## Team
 

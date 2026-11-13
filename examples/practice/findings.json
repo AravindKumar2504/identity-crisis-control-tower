@@ -1,0 +1,492 @@
+{
+  "format_version": "0.2",
+  "producer": {
+    "team": "Identity_Crisis",
+    "product": "Cohort Control Tower",
+    "track": "cohort-firewall"
+  },
+  "data": {
+    "dataset": "TCGA-BRCA (UCSC Xena hub, event frozen release)",
+    "releases": [
+      {
+        "name": "release-A",
+        "files": [
+          {
+            "file": "clinical.tsv",
+            "sha256": "39eb3be0fb86e6a577bd2cc01502a7fa5a271e1e1cba294e9dc644ad99580d7f",
+            "hash_of": "file"
+          },
+          {
+            "file": "survival.tsv",
+            "sha256": "6c9e18ae9c2b8bacc48cd5a60cde97e8880ae2e84e48df437a0378b17e659b73",
+            "hash_of": "file"
+          },
+          {
+            "file": "mutation_gene_level.tsv.gz",
+            "sha256": "ceaf6a01fd983cefc7fca8b52f6c65121acc87b75f4d170b9fcdc07ee16a3813",
+            "hash_of": "file"
+          },
+          {
+            "file": "copy_number_gistic.tsv.gz",
+            "sha256": "c45b1f8ea19c8dc20bd614d0863a40cccc633518d0ad05d2c7fff5f75781e980",
+            "hash_of": "file"
+          },
+          {
+            "file": "protein_rppa.tsv.gz",
+            "sha256": "7823a7a375495f7e5f114d0c7ec8773e070cb9ac409785f98045d12ab71195e6",
+            "hash_of": "file"
+          },
+          {
+            "file": "rna_hiseq.tsv.gz",
+            "sha256": "263bf67245cc4b9062676583c0ff0306f08471a26aafd5504037e1da22133746",
+            "hash_of": "file"
+          }
+        ]
+      },
+      {
+        "name": "practice",
+        "files": [
+          {
+            "file": "clinical.tsv",
+            "sha256": "39eb3be0fb86e6a577bd2cc01502a7fa5a271e1e1cba294e9dc644ad99580d7f",
+            "hash_of": "content"
+          },
+          {
+            "file": "survival.tsv",
+            "sha256": "6c9e18ae9c2b8bacc48cd5a60cde97e8880ae2e84e48df437a0378b17e659b73",
+            "hash_of": "content"
+          },
+          {
+            "file": "mutation_gene_level.tsv.gz",
+            "sha256": "8f7b02f47a4087aeffae11896dc8537b2b20e3d8bb85594dd77a6ce80828dd99",
+            "hash_of": "content"
+          },
+          {
+            "file": "copy_number_gistic.tsv.gz",
+            "sha256": "057090755b3877806148c7e520cb397850bba18ee223a312b4ccd62d0ee84705",
+            "hash_of": "content"
+          },
+          {
+            "file": "protein_rppa.tsv.gz",
+            "sha256": "e5ee5f77c9a5dfb3c6ea90d84a47db2866543d3dcaebc5093efb691b8847da5f",
+            "hash_of": "content"
+          }
+        ]
+      }
+    ]
+  },
+  "question": "Did release practice change anything that affects analyses A1 (ER-alpha protein by clinical ER status (primary tumors)) and A2 (PAM50 subtype mix of primary tumors)?",
+  "verdict": "Conditional",
+  "verdict_reason": "3 findings touch what the question reads; A1 changed when rerun. A person must review the findings before this release is used.",
+  "notes": [
+    "rna_hiseq.tsv.gz is not in release practice. That is expected for envelope releases, so it was not compared and is not reported as a problem."
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "kind": "sample_swap",
+      "summary": "In protein_rppa.tsv.gz, the profiles of TCGA-A8-A09K-01, TCGA-B6-A0WX-01 traded places between releases: each sample now carries another sample's data. Why it matters: The swapped samples sit in different ER groups (TCGA-A8-A09K-01 Positive, TCGA-B6-A0WX-01 Negative), so A1 now compares the wrong protein values in each group. Measured: undoing this change alone moves A1's ER+ minus ER- difference from 3.019 to 3.054 (1.16%).",
+      "severity": "high",
+      "confidence": "high",
+      "evidence": [
+        {
+          "kind": "sample",
+          "id": "TCGA-A8-A09K-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "now holds the profile TCGA-B6-A0WX-01 had in release-A"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-B6-A0WX-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "now holds the profile TCGA-A8-A09K-01 had in release-A"
+        },
+        {
+          "kind": "protein",
+          "id": "ERALPHA",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "the protein row A1 reads"
+        }
+      ],
+      "affects_analyses": [
+        "A1"
+      ],
+      "not_affected_analyses": [
+        "A2"
+      ],
+      "limitation": "Fingerprints prove the profiles moved between ids; they cannot say which release labels them correctly. A person should confirm against the source before trusting either.",
+      "needs_human_review": true,
+      "impact_reasons": "A1: 2 of these samples are in A1's group of samples; A2: A2 does not read protein_rppa.tsv.gz",
+      "effect": {
+        "A1": {
+          "measure": "ER+ minus ER- difference",
+          "now": 3.019,
+          "if_undone": 3.054,
+          "change": -0.036,
+          "relative_pct": 1.16
+        }
+      },
+      "detail": {
+        "cycle": [
+          "TCGA-A8-A09K-01",
+          "TCGA-B6-A0WX-01"
+        ],
+        "pairs": [
+          [
+            "TCGA-A8-A09K-01",
+            "TCGA-B6-A0WX-01"
+          ],
+          [
+            "TCGA-B6-A0WX-01",
+            "TCGA-A8-A09K-01"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "F2",
+      "kind": "duplicate",
+      "summary": "In protein_rppa.tsv.gz, 5 sample ids carry a profile identical to another sample's profile from release-A, so the same measurements are counted twice. Why it matters: Copied profiles are counted twice in A1, which inflates a group with measurements that belong to other samples. Measured: undoing this change alone moves A1's ER+ minus ER- difference from 3.019 to 3.015 (0.12%).",
+      "severity": "high",
+      "confidence": "high",
+      "evidence": [
+        {
+          "kind": "sample",
+          "id": "TCGA-E2-A106-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "identical to TCGA-C8-A133-01 (release-A)"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-E2-A9RU-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "identical to TCGA-EW-A1PE-01 (release-A)"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-GM-A5PX-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "identical to TCGA-E9-A2JT-01 (release-A)"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-LL-A5YN-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "identical to TCGA-AR-A1AP-01 (release-A)"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-LL-A73Z-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "identical to TCGA-E9-A1N3-01 (release-A)"
+        },
+        {
+          "kind": "protein",
+          "id": "ERALPHA",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "the protein row A1 reads"
+        }
+      ],
+      "affects_analyses": [
+        "A1"
+      ],
+      "not_affected_analyses": [
+        "A2"
+      ],
+      "limitation": "Identical profiles under two ids are almost never real biology; the tool cannot tell which id the measurements truly belong to.",
+      "needs_human_review": true,
+      "impact_reasons": "A1: 5 of these samples are in A1's group of samples; A2: A2 does not read protein_rppa.tsv.gz",
+      "effect": {
+        "A1": {
+          "measure": "ER+ minus ER- difference",
+          "now": 3.019,
+          "if_undone": 3.015,
+          "change": 0.004,
+          "relative_pct": 0.12
+        }
+      },
+      "detail": {
+        "copies": [
+          {
+            "new_id": "TCGA-E2-A106-01",
+            "copied_from": "TCGA-C8-A133-01",
+            "new_id_is_new": true
+          },
+          {
+            "new_id": "TCGA-E2-A9RU-01",
+            "copied_from": "TCGA-EW-A1PE-01",
+            "new_id_is_new": true
+          },
+          {
+            "new_id": "TCGA-GM-A5PX-01",
+            "copied_from": "TCGA-E9-A2JT-01",
+            "new_id_is_new": true
+          },
+          {
+            "new_id": "TCGA-LL-A5YN-01",
+            "copied_from": "TCGA-AR-A1AP-01",
+            "new_id_is_new": true
+          },
+          {
+            "new_id": "TCGA-LL-A73Z-01",
+            "copied_from": "TCGA-E9-A1N3-01",
+            "new_id_is_new": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "F3",
+      "kind": "membership_change",
+      "summary": "In protein_rppa.tsv.gz, 5 samples present in release-A are missing from release practice (subtype: Her2 5; ER status: Negative 3, Positive 1, unknown 1); by subtype, it removes 5 of the 61 HER2-enriched primary tumors (8.2%) with data in this file; the total sample count is unchanged, so a count check would not notice. Why it matters: It changes which samples A1 uses, but the answer barely moves: undoing this change alone moves A1's ER+ minus ER- difference from 3.019 to 3.02 (0.03%).",
+      "severity": "medium",
+      "confidence": "high",
+      "evidence": [
+        {
+          "kind": "sample",
+          "id": "TCGA-A8-A08J-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz",
+          "note": "present in release-A, absent in practice"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-C8-A12Q-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz",
+          "note": "present in release-A, absent in practice"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-C8-A26Y-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz",
+          "note": "present in release-A, absent in practice"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-E9-A1RH-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz",
+          "note": "present in release-A, absent in practice"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-GM-A2DH-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz",
+          "note": "present in release-A, absent in practice"
+        },
+        {
+          "kind": "protein",
+          "id": "ERALPHA",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz",
+          "note": "the protein row A1 reads"
+        }
+      ],
+      "affects_analyses": [
+        "A1"
+      ],
+      "not_affected_analyses": [
+        "A2"
+      ],
+      "limitation": "The tool sees that samples are missing or new, not why; a removal can be a legitimate redaction.",
+      "needs_human_review": true,
+      "impact_reasons": "A1: 4 of these samples are in A1's group of samples; A2: A2 does not read protein_rppa.tsv.gz",
+      "effect": {
+        "A1": {
+          "measure": "ER+ minus ER- difference",
+          "now": 3.019,
+          "if_undone": 3.02,
+          "change": -0.001,
+          "relative_pct": 0.03
+        }
+      },
+      "detail": {
+        "direction": "lost",
+        "same_total": true,
+        "coverage_lost": {
+          "Her2": {
+            "lost": 5,
+            "of": 61,
+            "pct": 8.2
+          }
+        }
+      }
+    }
+  ],
+  "analyses": [
+    {
+      "id": "A1",
+      "status": "changed",
+      "before": {
+        "n_samples": 698,
+        "n_positive": 529,
+        "n_negative": 169,
+        "mean_positive": 2.179,
+        "mean_negative": -0.872,
+        "difference": 3.051
+      },
+      "title": "ER-alpha protein by clinical ER status (primary tumors)",
+      "reason": "rerun because 3 finding(s) touch what A1 reads",
+      "after": {
+        "n_samples": 699,
+        "n_positive": 533,
+        "n_negative": 166,
+        "mean_positive": 2.176,
+        "mean_negative": -0.843,
+        "difference": 3.019
+      },
+      "samples_entered": [
+        "TCGA-E2-A106-01",
+        "TCGA-E2-A9RU-01",
+        "TCGA-GM-A5PX-01",
+        "TCGA-LL-A5YN-01",
+        "TCGA-LL-A73Z-01"
+      ],
+      "samples_left": [
+        "TCGA-A8-A08J-01",
+        "TCGA-C8-A12Q-01",
+        "TCGA-C8-A26Y-01",
+        "TCGA-GM-A2DH-01"
+      ]
+    },
+    {
+      "id": "A2",
+      "status": "not_rerun",
+      "before": {
+        "n_samples": 844,
+        "counts": {
+          "Basal": 141,
+          "Her2": 67,
+          "LumA": 421,
+          "LumB": 192,
+          "Normal": 23
+        },
+        "percent": {
+          "Basal": 16.7,
+          "Her2": 7.9,
+          "LumA": 49.9,
+          "LumB": 22.7,
+          "Normal": 2.7
+        }
+      },
+      "title": "PAM50 subtype mix of primary tumors",
+      "reason": "no change touches what A2 reads, so it was left alone"
+    }
+  ],
+  "repairs": [
+    {
+      "id": "R1",
+      "action": "restore_from_previous_release",
+      "targets": [
+        {
+          "kind": "sample",
+          "id": "TCGA-A8-A09K-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-B6-A0WX-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        }
+      ],
+      "justification": "Each sample's release-A profile is known exactly from its fingerprint; restoring puts every profile back under its own id. Evidence to reconsider: the data provider confirms the new labels are correct.",
+      "addresses": [
+        "F1"
+      ]
+    },
+    {
+      "id": "R2",
+      "action": "exclude",
+      "targets": [
+        {
+          "kind": "sample",
+          "id": "TCGA-E2-A106-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-E2-A9RU-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-GM-A5PX-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-LL-A5YN-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-LL-A73Z-01",
+          "release": "practice",
+          "file": "protein_rppa.tsv.gz"
+        }
+      ],
+      "justification": "These ids carry copies of other samples' measurements; excluding them removes the double counting. Evidence to reconsider: the provider shows the ids are distinct specimens with their own measurements.",
+      "addresses": [
+        "F2"
+      ]
+    },
+    {
+      "id": "R3",
+      "action": "flag_for_review",
+      "targets": [
+        {
+          "kind": "sample",
+          "id": "TCGA-A8-A08J-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-C8-A12Q-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-C8-A26Y-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-E9-A1RH-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz"
+        },
+        {
+          "kind": "sample",
+          "id": "TCGA-GM-A2DH-01",
+          "release": "release-A",
+          "file": "protein_rppa.tsv.gz"
+        }
+      ],
+      "justification": "Ask the provider why these samples were removed; a redaction or a withdrawn consent is legitimate, a processing loss is not. Report the smaller group until it is explained.",
+      "addresses": [
+        "F3"
+      ]
+    }
+  ]
+}

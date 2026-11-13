@@ -34,7 +34,7 @@ Any file in `tower/checks/` is picked up automatically. `release.table("survival
 
 | Field | Meaning |
 |---|---|
-| `id` | The check name |
+| `id` | The check name. When one check reports several problems, give each its own id (for example `missing_values_ER` and `missing_values_HER2`), so each gets its own review decision |
 | `title` | One line a non-specialist understands, with the key number |
 | `status` | `pass`, `warn` (usable with conditions), `block` (can't support this use), `unknown` (can't tell) |
 | `material` | Does it matter **for this card**? Not applicable: return `pass` with `material=False` |
@@ -48,7 +48,7 @@ Any file in `tower/checks/` is picked up automatically. `release.table("survival
 | `next_step` | A fix sized to the problem |
 | `evidence_needed` | What would change the result |
 
-A check that crashes is reported as `unknown`, never as a crash of the whole report.
+A check that crashes is reported as `unknown`, never as a crash of the whole report. A check file that fails to import doesn't stop the tool either: the screen names the file, and its checks show as not built.
 
 ## 3. Verdict rule (`tower/readiness.py`, built)
 
@@ -56,7 +56,7 @@ Over the material issues for the card, in this order: any `block` gives **Blocke
 
 ## 4. `readiness.json` (built)
 
-Written by `python -m tower check --card <id>` (and by `envelope ... --card <id>`). Keys: `card`, `release`, `compared_with`, `group_size`, `verdict`, `reasons`, `summary` (plain English), `issues`, `checked_not_material`, `release_changes`, `analyses`, `next_steps`, `review` (`required`, `items`, `signed_off`), `lineage` (each conclusion with its rule, source, fields, rows and file fingerprints), `fields_read`, `generated`, `disclaimer`. The screen reads only `findings.json` and `readiness.json`.
+Written by `python -m tower check --card <id>` (and by `envelope ... --card <id>`). Keys: `card`, `release`, `compared_with`, `group_size`, `verdict`, `reasons`, `summary` (plain English), `issues`, `checked_not_material`, `pending_checks` (listed on a card but not built yet), `release_changes`, `analyses`, `next_steps`, `review` (`required`, `items`, `signed_off`), `lineage` (each conclusion with its rule, source, fields, rows and file fingerprints), `fields_read`, `generated`, `disclaimer`. The screen reads only `findings.json` and `readiness.json`.
 
 ## 5. Checks the cards list
 
@@ -72,8 +72,8 @@ Written by `python -m tower check --card <id>` (and by `envelope ... --card <id>
 | `survival_redacted` | Aakruti | to build | 6 survival rows marked Redacted, 5 of them primary tumors that still carry values | os-luminal-a, pfi-luminal-a |
 | `survival_zero_time` | Aakruti | to build | 13 primary tumors with `OS.time` of 0 | os-luminal-a, pfi-luminal-a |
 | `patient_double_count` | Aakruti | to build | 135 patients whose tumor and normal survival rows are identical (counted twice if analysed per sample) | os-luminal-a, pfi-luminal-a |
-| `duplicate_subjects` | Aakruti | to build | TCGA-AN-A0FE and TCGA-AN-A0FG are one person (TCGA redaction, 2010); both in `clinical.tsv` | er-alpha-by-er, subtype-mix |
-| `site_shift` | Aakruti | to build | Hospital (tissue source site) mix of the card's group vs all primary tumors: total variation distance 0.137 when protein is required | er-alpha-by-er |
+| `duplicate_subjects` | Aakruti | dropped (Fri) | Not reported: neither sample is in any analysis, and the fact comes from outside annotations, which RULES.md asks us not to link | none |
+| `site_shift` | Aakruti | dropped (Fri) | Not reported: the shift (0.137) is under the card's own 0.15 limit, so it can't change a verdict | none |
 | `missing_values` | Aakruti | to build | Share of the group with a blank value in each field the card reads, against `limits.missing_fraction` | er-alpha-by-er, her2-positive-protein, esr1-expression-vs-er |
 | `leakage_columns` | Aakruti | to build | The 9 subtype-derived columns (PAM50, SigClust, Integrated_Clusters, RPPA_Clusters, CN_Clusters) a model must not use as features | subtype-classifier-rna |
 | `her2_field_conflict` | Aakruti | to build | HER2 IHC vs `HER2_Final_Status_nature2012`: 175 of 669 differ (106 equivocal resolved by FISH, 38 positive vs negative) | her2-positive-protein |

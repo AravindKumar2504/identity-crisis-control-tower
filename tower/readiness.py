@@ -56,19 +56,20 @@ def _touch_reason(t: dict) -> str:
     if t.get("structural"):
         return (f"Release change {t['finding']} ({t['kind']}) adds or removes {', '.join(t['structural'])} in "
                 f"{t['file']}, which this question reads.")
-    return f"Release change {t['finding']} ({t['kind']}) touches {len(t['samples'])} sample(s) this question studies."
+    k = len(t["samples"])
+    return f"Release change {t['finding']} ({t['kind']}) touches {k} sample{'' if k == 1 else 's'} this question studies."
 
 
 # What a person should do about each kind of release change that touches the question, and what would settle it.
 _STEPS = {
-    "sample_swap": ("restore the release-A profiles of the {n} swapped sample(s), or have the data provider confirm "
+    "sample_swap": ("restore the release-A profiles of the {n} swapped sample{s}, or have the data provider confirm "
                     "which id each profile belongs to", "The provider confirms the new labels are correct."),
-    "duplicate": ("exclude the {n} copied profile(s) from this analysis",
+    "duplicate": ("exclude the {n} copied profile{s} from this analysis",
                   "The provider shows the ids are distinct specimens with their own measurements."),
-    "lost": ("ask the data provider why {n} sample(s) were removed before using the smaller group (a redaction is "
+    "lost": ("ask the data provider why {n} sample{s} {were} removed before using the smaller group (a redaction is "
              "legitimate, a processing loss is not)", "The provider's reason for each removal."),
-    "gained": ("check where the {n} new sample(s) came from before including them", "Source records for the new samples."),
-    "label_conflict": ("confirm the {n} changed '{col}' value(s) against the source records, and keep the release-A "
+    "gained": ("check where the {n} new sample{s} came from before including them", "Source records for the new samples."),
+    "label_conflict": ("confirm the {n} changed '{col}' value{s} against the source records, and keep the release-A "
                        "values until they are explained", "A documented correction for each changed value."),
     "missing_data": ("get the missing values back from the data provider",
                      "A release where the values are present, matching its published fingerprint."),
@@ -82,7 +83,8 @@ def _touch_step(t: dict) -> dict:
     if t.get("structural"):
         text, need = (f"find out why {', '.join(t['structural'])} changed in {t['file']} before using this release",
                       "An explanation from the data provider.")
-    text = text.format(n=len(t["samples"]), col=t.get("column") or "")
+    k = len(t["samples"])
+    text = text.format(n=k, col=t.get("column") or "", s="" if k == 1 else "s", were="was" if k == 1 else "were")
     return {"for": t["finding"], "step": f"{t['finding']}: {text[0].upper()}{text[1:]}.", "evidence_needed": need}
 
 
@@ -230,7 +232,7 @@ def markdown(doc: dict) -> str:
                      f"{'yes' if x['pre_existing'] else 'no'} | {x['title']} |")
     if doc["release_changes"]:
         lines += ["", "## Release changes that touch this question", ""]
-        lines += [f"- {t['finding']} ({t['kind']}, {t['file']}): {len(t['samples'])} sample(s): {t['summary']}"
+        lines += [f"- {t['finding']} ({t['kind']}, {t['file']}): {len(t['samples'])} sample{'' if len(t['samples']) == 1 else 's'}: {t['summary']}"
                   for t in doc["release_changes"]]
     if doc["next_steps"]:
         lines += ["", "## Next steps", ""]

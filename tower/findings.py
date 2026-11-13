@@ -103,12 +103,10 @@ def repairs_for(fid: str, ch) -> list[dict]:
                                   "double counting. Evidence to reconsider: the provider shows the ids are distinct "
                                   "specimens with their own measurements."}]
     if ch.kind == "membership_change" and ch.detail.get("direction") == "lost":
+        # Never 'restore' a removed sample: the removal may be a consent withdrawal or a redaction.
         return [{"action": "flag_for_review", "targets": t,
-                 "justification": "Ask the provider why these samples were removed; a redaction is legitimate, a "
-                                  "processing loss is not."},
-                {"action": "restore_from_previous_release", "targets": t,
-                 "justification": "Until the removal is explained, analyses can keep the release-A measurements so the "
-                                  "affected group does not shrink silently."}]
+                 "justification": "Ask the provider why these samples were removed; a redaction or a withdrawn consent "
+                                  "is legitimate, a processing loss is not. Report the smaller group until it is explained."}]
     if ch.kind == "label_conflict":
         return [{"action": "flag_for_review", "targets": t,
                  "justification": f"Confirm the new '{ch.detail.get('column')}' values against the source record; "
@@ -201,11 +199,11 @@ def decide(cmp, results, findings, ids) -> tuple[str, str]:
     touched = [f for f in findings if f["affects_analyses"]]
     if touched:
         moved = [x for x in ids if results.get(x, {}).get("status") == "changed"]
-        return "Conditional", (f"{len(touched)} finding(s) touch what the question reads"
+        return "Conditional", (f"{len(touched)} {'finding touches' if len(touched) == 1 else 'findings touch'} what the question reads"
                                + (f"; {', '.join(moved)} changed when rerun" if moved else "; reruns show no change")
                                + ". A person must review the findings before this release is used.")
     if findings:
-        return "Ready", (f"{len(findings)} change(s) found, but none touches what the question reads; they are "
+        return "Ready", (f"{len(findings)} {'change' if len(findings) == 1 else 'changes'} found, but none touches what the question reads; they are "
                          "listed at low severity.")
     return "Ready", "Nothing that the question reads changed between the releases."
 

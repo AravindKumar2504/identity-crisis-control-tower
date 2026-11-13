@@ -16,4 +16,4 @@ analyses: [A2]
 limits:
   subtype_disagreement: 0.05
   missing_fraction: 0.10
-checks: [inputs_present, subtype_columns_disagree, subtype_missing, a2_robustness, duplicate_subjects]
+checks: [inputs_present, subtype_columns_disagree, subtype_missing, a2_robustness]

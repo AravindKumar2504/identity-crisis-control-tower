@@ -19,4 +19,4 @@ analyses: [A1]
 limits:
   missing_fraction: 0.10
   site_shift_tvd: 0.15
-checks: [inputs_present, missing_values, site_shift, duplicate_subjects]
+checks: [inputs_present, missing_values]

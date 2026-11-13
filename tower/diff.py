@@ -14,15 +14,26 @@ survival record) are never reported as copies, because nothing changed about the
 """
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release, UnreadableFile
+from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release, UnreadableFile, sample_type
 
 BLANKS = {"", "NA", "nan", "NaN", "null", "None"}
+SUBTYPE_NAMES = {"LumA": "Luminal A", "LumB": "Luminal B", "Basal": "Basal-like", "Her2": "HER2-enriched",
+                 "Normal": "Normal-like"}
+
+
+def _rel(name: str) -> str:
+    """'practice' reads as 'release practice'; 'release-A' stays as it is (never 'release release-A')."""
+    return name if name.lower().startswith("release") else f"release {name}"
+
+
+def _n(k: int, word: str) -> str:
+    return f"{k} {word}{'' if k == 1 else 's'}"
 
 
 @dataclass
@@ -52,7 +63,7 @@ def compare(a: Release, b: Release) -> Comparison:
     unchanged, compared, notes = [], [], []
     for f in ALL_FILES:
         if f in a.unreadable:
-            raise UnreadableFile(f"release {a.name}'s {f} can't be read ({a.unreadable[f]}); fetch release A again")
+            raise UnreadableFile(f"{_rel(a.name)}'s {f} can't be read ({a.unreadable[f]}); fetch release A again")
         in_a, in_b = a.has(f), b.has(f)
         if f in b.unreadable and in_a:
             changes.append(_unreadable(f, b))
@@ -61,14 +72,14 @@ def compare(a: Release, b: Release) -> Comparison:
             continue
         if in_a and not in_b:
             if f in OPTIONAL_FILES:
-                notes.append(f"{f} is not in release {b.name}. That is expected for envelope releases, "
+                notes.append(f"{f} is not in {_rel(b.name)}. That is expected for envelope releases, "
                              "so it was not compared and is not reported as a problem.")
             else:
-                changes.append(Change("missing_data", f, [], f"{f} is missing from release {b.name}, so nothing "
+                changes.append(Change("missing_data", f, [], f"{f} is missing from {_rel(b.name)}, so nothing "
                                       "that reads it can be checked.", detail={"file_missing": True}))
             continue
         if in_b and not in_a:
-            notes.append(f"{f} appears in release {b.name} but not in release {a.name}; it was not compared.")
+            notes.append(f"{f} appears in {_rel(b.name)} but not in {_rel(a.name)}; it was not compared.")
             continue
         if a.content_sha256[f] == b.content_sha256[f]:
             unchanged.append(f)
@@ -88,7 +99,7 @@ def compare(a: Release, b: Release) -> Comparison:
 
 
 def _unreadable(f: str, b: Release) -> Change:
-    return Change("missing_data", f, [], f"{f} in release {b.name} can't be read ({b.unreadable.get(f, 'unreadable')}), "
+    return Change("missing_data", f, [], f"{f} in {_rel(b.name)} can't be read ({b.unreadable.get(f, 'unreadable')}), "
                   "so it was refused instead of compared, and nothing that reads it can be checked.",
                   detail={"file_missing": True, "unreadable": b.unreadable.get(f, "")})
 
@@ -149,7 +160,7 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
         if len(path) >= 2 and start in nxt.get(path[-1], []):
             seen.update(path)
             explained.update(path)
-            notes = {p: f"now holds the profile {path[(i + 1) % len(path)]} had in release {a.name}"
+            notes = {p: f"now holds the profile {path[(i + 1) % len(path)]} had in {_rel(a.name)}"
                      for i, p in enumerate(path)}
             kind_txt = "traded places" if len(path) == 2 else f"moved in a chain of {len(path)}"
             out.append(Change("sample_swap", f, path, f"In {f}, the profiles of {', '.join(path)} {kind_txt} "
@@ -197,25 +208,25 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
     for x, y, d in later_swaps:
         out.append(Change("sample_swap", f, [x, y],
                           f"In {f}, {x} (a new id made as a copy of {d}) and {y} traded places: {x} now carries the "
-                          f"profile {y} had in release {a.name}, and {y} carries the copy of {d}.",
-                          notes={x: f"now holds the profile {y} had in release {a.name}",
+                          f"profile {y} had in {_rel(a.name)}, and {y} carries the copy of {d}.",
+                          notes={x: f"now holds the profile {y} had in {_rel(a.name)}",
                                  y: f"now holds the copy of {d} that was made under {x}"},
                           evidence_release={x: "B", y: "B"}, confidence="medium",
                           detail={"cycle": [x, y], "pairs": [[x, y], [y, x]], "after_copy_of": d}))
     if dups:
         out.append(Change("duplicate", f, [d[0] for d in dups],
-                          f"In {f}, {len(dups)} sample id(s) carry a profile identical to another sample's "
-                          f"profile from release {a.name}, so the same measurements are counted twice.",
-                          notes={x: dup_notes.get(x, f"identical to {y} (release {a.name})") for x, y in dups},
+                          f"In {f}, {_n(len(dups), 'sample id')} {'carries' if len(dups) == 1 else 'carry'} a profile identical to another sample's "
+                          f"profile from {_rel(a.name)}, so the same measurements are counted twice.",
+                          notes={x: dup_notes.get(x, f"identical to {y} ({_rel(a.name)})") for x, y in dups},
                           evidence_release={x: "B" for x, _ in dups},
                           detail={"copies": [{"new_id": x, "copied_from": y, "new_id_is_new": x in added} for x, y in dups]}))
 
     if renames:
         out.append(Change("other", f, [i for pair in renames for i in pair],
-                          f"In {f}, {len(renames)} sample id(s) were renamed: each profile now appears under a new id "
+                          f"In {f}, {_n(len(renames), 'sample id')} {'was' if len(renames) == 1 else 'were'} renamed: each profile now appears under a new id "
                           f"and its old id is gone, so analyses would treat it as a different sample.",
-                          notes={**{x: f"carries the profile {y} had in release {a.name}" for x, y in renames},
-                                 **{y: f"gone from release {b.name}; its profile now sits under {x}" for x, y in renames}},
+                          notes={**{x: f"carries the profile {y} had in {_rel(a.name)}" for x, y in renames},
+                                 **{y: f"gone from {_rel(b.name)}; its profile now sits under {x}" for x, y in renames}},
                           evidence_release={**{x: "B" for x, _ in renames}, **{y: "A" for _, y in renames}},
                           detail={"renames": [{"new_id": x, "old_id": y} for x, y in renames]}))
 
@@ -226,13 +237,13 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
         explained.add(x)
         y_gone = y not in sb
         out.append(Change("sample_swap", f, [x, y],
-                          f"In {f}, {x} now carries the profile {y} had in release {a.name}"
-                          + (f", and {y} is no longer in release {b.name}: the two traded places and {y} was then "
+                          f"In {f}, {x} now carries the profile {y} had in {_rel(a.name)}"
+                          + (f", and {y} is no longer in {_rel(b.name)}: the two traded places and {y} was then "
                              "removed (it is also reported as missing)." if y_gone else
                              f", and {y} no longer holds it: the two traded places."),
-                          notes={x: f"now holds the profile {y} had in release {a.name}",
-                                 y: (f"traded places with {x}, then removed from release {b.name}" if y_gone
-                                     else f"its release-{a.name} profile now sits under {x}")},
+                          notes={x: f"now holds the profile {y} had in {_rel(a.name)}",
+                                 y: (f"traded places with {x}, then removed from {_rel(b.name)}" if y_gone
+                                     else f"its {_rel(a.name)} profile now sits under {x}")},
                           evidence_release={x: "B", y: "A" if y_gone else "B"}, confidence="medium",
                           detail={"cycle": [x, y], "pairs": [[x, y], [y, x]], "partner_removed": y_gone}))
 
@@ -240,20 +251,22 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
     lost = [x for x in removed if x not in renamed_from] + reused
     if lost:
         ctx = _subgroups(lost, a)
+        cov = _coverage_lost(lost, sa, a)
         same_count = len(sa) == len(sb)
         out.append(Change("membership_change", f, lost,
-                          f"In {f}, {len(lost)} sample(s) present in release {a.name} are missing from release {b.name}"
-                          f"{ctx}{'; the total sample count is unchanged, so a count check would not notice' if same_count else ''}.",
-                          notes={x: (f"its release-{a.name} profile is gone from release {b.name}; the id now holds a copy "
+                          f"In {f}, {_n(len(lost), 'sample')} present in {_rel(a.name)} {'is' if len(lost) == 1 else 'are'} "
+                          f"missing from {_rel(b.name)}{ctx}{_coverage_text(cov)}"
+                          f"{'; the total sample count is unchanged, so a count check would not notice' if same_count else ''}.",
+                          notes={x: (f"its {_rel(a.name)} profile is gone from {_rel(b.name)}; the id now holds a copy "
                                      "of another sample" if x in reused else f"present in {a.name}, absent in {b.name}")
                                  for x in lost},
                           evidence_release={x: "A" for x in lost},
-                          detail={"direction": "lost", "same_total": same_count}))
+                          detail={"direction": "lost", "same_total": same_count, "coverage_lost": cov}))
     gained = [x for x in added if x not in explained]
     if gained:
         out.append(Change("membership_change", f, gained,
-                          f"In {f}, {len(gained)} new sample(s) appear in release {b.name} whose profiles match "
-                          f"nothing in release {a.name}.",
+                          f"In {f}, {_n(len(gained), 'new sample')} {'appears' if len(gained) == 1 else 'appear'} in {_rel(b.name)} whose profiles match "
+                          f"nothing in {_rel(a.name)}.",
                           notes={x: f"absent in {a.name}, present in {b.name}" for x in gained},
                           evidence_release={x: "B" for x in gained}, confidence="medium",
                           detail={"direction": "gained"}))
@@ -271,14 +284,14 @@ def _explain(f, fa: dict, fb: dict, ta, tb, feats, a, b) -> list[Change]:
                 edited.append((x, int(diff.sum())))
         if blanked:
             out.append(Change("missing_data", f, [x for x, _ in blanked],
-                              f"In {f}, {len(blanked)} sample(s) lost measured values (cells became empty).",
-                              notes={x: f"{n} value(s) became empty" for x, n in blanked},
+                              f"In {f}, {_n(len(blanked), 'sample')} lost measured values (cells became empty).",
+                              notes={x: f"{_n(n, 'value')} became empty" for x, n in blanked},
                               evidence_release={x: "B" for x, _ in blanked}, detail={"blanked": dict(blanked)}))
         if edited:
             out.append(Change("other", f, [x for x, _ in edited],
-                              f"In {f}, {len(edited)} sample(s) have changed values that are not a swap, copy or "
+                              f"In {f}, {_n(len(edited), 'sample')} {'has' if len(edited) == 1 else 'have'} changed values that are not a swap, copy or "
                               "removal; the tool reports them but cannot say why they changed.",
-                              notes={x: f"{n} value(s) changed" for x, n in edited},
+                              notes={x: f"{_n(n, 'value')} changed" for x, n in edited},
                               evidence_release={x: "B" for x, _ in edited}, confidence="low",
                               detail={"edited": dict(edited)}))
     return out
@@ -331,24 +344,56 @@ def _diff_rows(f, da: pd.DataFrame, db: pd.DataFrame, a, b) -> list[Change]:
             verb = "lost its value for" if all(v.strip() in BLANKS for v in after.values()) else "changed value in"
             vals = pd.Series([f"{before[s] or '(blank)'} -> {after[s] or '(blank)'}" for s in ids]).value_counts()
             moves = "; ".join(f"{k} ({v})" for k, v in vals.head(4).items())
-            out.append(Change(kind, f, ids, f"In {f}, {len(ids)} sample(s) {verb} '{col}' between releases ({moves}).",
+            out.append(Change(kind, f, ids, f"In {f}, {_n(len(ids), 'sample')} {verb} '{col}' between releases ({moves}).",
                               notes={s: f"{col}: '{before[s]}' in {a.name}, '{after[s]}' in {b.name}" for s in ids},
                               evidence_release={s: "B" for s in ids},
                               detail={"column": col, "before": before, "after": after}))
     if lost:
+        cov = _coverage_lost(lost, sa, a)
         out.append(Change("membership_change", f, lost,
-                          f"In {f}, {len(lost)} sample row(s) present in release {a.name} are missing from release {b.name}.",
+                          f"In {f}, {_n(len(lost), 'sample row')} present in {_rel(a.name)} {'is' if len(lost) == 1 else 'are'} "
+                          f"missing from {_rel(b.name)}{_coverage_text(cov)}.",
                           notes={s: f"present in {a.name}, absent in {b.name}" for s in lost},
-                          evidence_release={s: "A" for s in lost}, detail={"direction": "lost"}))
+                          evidence_release={s: "A" for s in lost}, detail={"direction": "lost", "coverage_lost": cov}))
     if gained:
         out.append(Change("membership_change", f, gained,
-                          f"In {f}, {len(gained)} new sample row(s) appear in release {b.name}.",
+                          f"In {f}, {_n(len(gained), 'new sample row')} {'appears' if len(gained) == 1 else 'appear'} in {_rel(b.name)}.",
                           notes={s: f"absent in {a.name}, present in {b.name}" for s in gained},
                           evidence_release={s: "B" for s in gained}, confidence="medium", detail={"direction": "gained"}))
     return out
 
 
 # ----------------------------------------------------------------------------------------------- context
+def _coverage_lost(lost: list[str], file_samples, rel: Release) -> dict:
+    """How much of each subtype's data in this file the lost samples take away, using release A's subtype calls
+    (PAM50Call_RNAseq) and counting primary tumors only."""
+    try:
+        if not rel.has("clinical.tsv"):
+            return {}
+        cl = rel.table("clinical.tsv").frame
+    except Exception:          # coverage is context; it must never stop the comparison
+        return {}
+    col = "PAM50Call_RNAseq"
+    if col not in cl.columns:
+        return {}
+
+    def subtype(s):
+        v = str(cl.at[s, col]).strip() if s in cl.index else ""
+        return v if v and v not in BLANKS else "no subtype call"
+
+    totals = Counter(subtype(s) for s in file_samples if sample_type(s) == "01")
+    gone = Counter(subtype(s) for s in lost if sample_type(s) == "01")
+    return {k: {"lost": n, "of": totals[k], "pct": round(100 * n / totals[k], 1) if totals[k] else None}
+            for k, n in gone.most_common()}
+
+
+def _coverage_text(cov: dict) -> str:
+    parts = [f"{v['lost']} of the {v['of']} {SUBTYPE_NAMES.get(k, k)} primary tumors"
+             + (f" ({v['pct']}%)" if v["pct"] is not None else "")
+             for k, v in list(cov.items())[:3] if k != "no subtype call"]
+    return f"; by subtype, it removes {', '.join(parts)} with data in this file" if parts else ""
+
+
 def _subgroups(ids: list[str], rel: Release) -> str:
     """Describe which subtype and ER groups the lost samples come from, using release A's clinical file."""
     if not rel.has("clinical.tsv"):

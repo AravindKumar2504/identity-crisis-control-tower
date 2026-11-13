@@ -1,6 +1,6 @@
 # The 3-minute demo and the sealed envelope
 
-Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every number comes from the practice envelope as of commit 431de49. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
+Draft v2, Fri 11/13 (after the overnight fixes). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
 
 **Roles (suggested):** Madhu speaks and Aravind drives the laptop. Aakruti and Chirag answer questions on their own parts.
 
@@ -9,7 +9,7 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 - A terminal is open in `identity-crisis-control-tower` with the venv on.
 - The browser is zoomed so all 8 question buttons are visible.
 
-## The script (about 380 words, roughly 2:35 of speaking plus clicks)
+## The script (about 370 words, roughly 148 seconds of speaking plus clicks; the optional hormone therapy click adds about 14 seconds)
 
 ### 0:00 Hook (20 s) · screen: the verdict card
 
@@ -17,13 +17,13 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 
 ### 0:20 What changed (60 s) · screen: What changed tab, then Analyses
 
-> We fingerprint every sample in every file, so any change shows up. Here are the three changes, with every affected sample named: twelve samples, and not one that didn't change. That matches the organizers' reference answer for this envelope.
+> We fingerprint every sample in every file, so any change shows up. Here are the three changes, with every affected sample named: twelve samples, and not one that didn't change. That matches the organizers' reference answer for this envelope. And the five samples that disappeared are all HER2-enriched tumors, so that subgroup shrinks while the total stays the same.
 
 *[Analyses]*
 
-> Only the analysis that reads those samples is rerun. The ER-alpha difference moves from 3.051 to 3.019. Each finding shows its own measured effect: undoing the swap alone moves the result by about 1.2 percent.
+> Only A1 reads those samples, so only A1 is rerun: the ER-alpha difference moves from 3.051 to 3.019. A2, the subtype mix, is left alone, because nothing it reads changed.
 >
-> So does the conclusion still hold? Yes. The 95 percent range is 2.835 to 3.179, and without the flagged samples it is 3.047. The verdict is Conditional: usable once a person reviews these three findings.
+> So does the conclusion still hold? Yes. The 95 percent range is 2.835 to 3.179, well above zero. The verdict is Conditional, and each change comes with a next step: restore the swapped profiles, exclude the copies, and ask the provider why the samples were removed.
 
 ### 1:20 Change the question (60 s) · screen: the question board
 
@@ -31,7 +31,7 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 
 *[OS, Luminal A]*
 
-> Overall survival in Luminal A: Blocked. Median follow-up is 32.9 months, and the TCGA curators' own paper says overall survival may suit basal-like tumors, but not Luminal A.
+> Overall survival in Luminal A: Blocked. Median follow-up is under three years, and the TCGA curators' own paper says overall survival may suit basal-like tumors, but not Luminal A.
 
 *[PFI, Luminal A]*
 
@@ -41,7 +41,7 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 
 > Training a model to predict PAM50 subtype from RNA: Blocked, because the PAM50 label was computed from that same RNA. High accuracy would only show it relearned that rule.
 
-*[Hormone therapy]*
+*[Hormone therapy, optional: skip it if you're running long]*
 
 > Hormone therapy response: Blocked. The release doesn't record which tumors got hormone therapy, or any response to it.
 >
@@ -55,7 +55,7 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 
 > We tested it on 20 releases, 7 of them built to break it, with every answer key written before the tool ran. 20 of 20 pass. One command, about two seconds. Hand us the envelope.
 
-**If you run over 3:00:** cut the hormone therapy click first. Next, cut the "without the flagged samples" sentence.
+**If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
 ## Q&A: the sealed envelope
 
@@ -70,14 +70,14 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
    - each finding: its kind, how severe, how many samples, and which analysis it touches
    - the `valid` line (the organizers' validator passed) and the total time
 3. Refresh the screen. The opened envelope appears in the release list; pick it and show the question board.
-4. **If the command fails:** use the sidebar's "Open a sealed envelope" instead. If that also fails, unseal with the organizers' script, then compare:
+4. **If the command fails:** use the sidebar's "Open a sealed envelope" instead. If that also fails, unseal with the organizers' script, then compare. The opened folder is named E plus two digits (envelope 7 opens as `E07`).
 
    ```bash
    cd ../oncosys-hackathon-challenge && python envelopes/unseal.py <number> <word1> <word2> <word3> <word4>
    ```
 
    ```bash
-   cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/<number>/release --challenge ../oncosys-hackathon-challenge
+   cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/E<two digits>/release --challenge ../oncosys-hackathon-challenge
    ```
 
 ## Likely judge questions
@@ -90,12 +90,14 @@ Draft v1, Fri 11/13. Every line below uses the screen's own wording, and every n
 
 ## Check at Friday's 9 PM dry run
 
-- **PFI may change.** It shows Ready today only because Aakruti's survival checks aren't built. Once they land it may say Conditional (what PLAN.md expects), so re-read the board and adjust that line. The "Not built yet" text must not appear in front of judges.
-- **Hook choice.** If the duplicate-patient check shows TCGA-AN-A0FE and TCGA-AN-A0FG on screen, PLAN.md's hook is stronger: the same patient enrolled twice under two IDs.
+- **PFI may change.** It shows "Ready on the checks that ran, but not fully checked yet" today, because Aakruti's survival checks aren't built. Once they land it may say Conditional (what PLAN.md expects), so re-read the board and adjust that line.
+- **Nothing "not checked yet".** Until every check a card lists is built or removed from the card, the summary says "Not checked yet" and the board says "N not checked yet". Both must be gone before judging.
+- **Hook.** Keep the practice hook. Don't use the duplicate-patient story (TCGA-AN-A0FE and TCGA-AN-A0FG): neither sample is in any analysis, and the fact comes from outside annotations, which the rules ask us not to link.
 - **Timing.** Read it aloud twice with a stopwatch.
 
 ## Where the claims come from
 
-- Practice numbers (747 protein samples, 12 samples cited, 3.051 to 3.019, the 1.2 percent effect, the 2.835 to 3.179 range, 3.047 without the flagged samples, 32.9 months): the tool's own output on the practice envelope.
+- Practice numbers (747 protein samples, 12 samples cited, the five lost samples all HER2-enriched, 3.051 to 3.019, the 1.2 percent effect, the 2.835 to 3.179 range, 3.047 without the flagged samples): the tool's own output on the practice envelope.
+- Follow-up: median 35.4 months for Luminal A primary tumors, by the reverse Kaplan-Meier method (the median observed time is 32.9 months). Both are under three years.
 - Endpoint advice: Liu et al., An Integrated TCGA Pan-Cancer Clinical Data Resource to Drive High-Quality Survival Outcome Analytics, Cell 2018, https://doi.org/10.1016/j.cell.2018.02.052. It recommends PFI and DFI without reservation, suggests caution with overall survival in breast cancer, and says overall survival may suit the basal-like subtype but not Luminal A.
 - PAM50 is computed from gene expression: Parker et al., Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes, J Clin Oncol 2009, https://doi.org/10.1200/JCO.2008.18.1370.
