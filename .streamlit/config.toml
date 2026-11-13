@@ -1,0 +1,33 @@
+# Look and feel of the review screen. System fonts only, so it looks the same offline at the venue.
+[theme]
+base = "light"
+primaryColor = "#0F766E"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F3F6F8"
+textColor = "#132A3A"
+linkColor = "#0F766E"
+font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+headingFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+codeFont = "'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
+baseRadius = "0.65rem"
+buttonRadius = "0.55rem"
+borderColor = "#E2E8EE"
+showWidgetBorder = true
+metricValueFontSize = "1.85rem"
+metricValueFontWeight = 700
+dataframeHeaderBackgroundColor = "#F3F6F8"
+chartCategoricalColors = ["#0F766E", "#C2410C", "#1D4ED8", "#A16207", "#7C3AED", "#BE123C"]
+
+[theme.sidebar]
+backgroundColor = "#0E2433"
+secondaryBackgroundColor = "#173447"
+textColor = "#E8F0F4"
+primaryColor = "#5EEAD4"
+borderColor = "#24475C"
+
+[server]
+address = "localhost"
+headless = true
+
+[browser]
+gatherUsageStats = false
