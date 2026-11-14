@@ -117,7 +117,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | Path | What it is |
 |---|---|
 | `tower/release.py` | Loads a release; fingerprints every file and every sample |
-| `tower/diff.py` | Explains each change: swaps and chains, copies, losses, gains, relabels, blanked or edited values |
+| `tower/diff.py` | Explains each change: swaps and chains, copies, losses, gains, relabels, blanked or edited values, and sample ids on more than one row (join_inflation) |
 | `tower/analyses.py` | A1 and A2, matching the organizers' `reference_analyses.py`, and which changes touch them |
 | `tower/findings.py` | Writes `findings.json`: one finding per change, every affected sample cited, severity with its reason |
 | `tower/cards.py` | Loads research-question cards and works out which samples each question studies |
