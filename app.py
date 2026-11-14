@@ -89,6 +89,40 @@ GLOSSARY = {
     "A1": "The protected analysis comparing average ER-alpha protein between ER-positive and ER-negative tumors.",
     "A2": "The protected analysis counting the share of each PAM50 subtype.",
 }
+VERDICT_HELP = {
+    "Ready": "Ready: nothing found that stops this use; the checks that ran passed.",
+    "Conditional": "Conditional: usable only after a person reviews the problems or changes listed.",
+    "Blocked": "Blocked: the data can't support this use as the question states it.",
+    "Insufficient Evidence": "Insufficient Evidence: the tool can't tell yet, for example because a file or a check "
+                             "is missing.",
+}
+# What each built-in question asks, in plain words (hover help on the question board); custom questions use their title.
+QUESTION_PLAIN = {
+    "er-alpha-by-er": "is the average ER-alpha protein level different between ER-positive and ER-negative tumors?",
+    "os-luminal-a": "does overall survival differ between PAM50 subtypes, looking most closely at Luminal A tumors?",
+    "pfi-luminal-a": "does the progression-free interval differ between PAM50 subtypes, looking most closely at "
+                     "Luminal A tumors?",
+    "esr1-expression-vs-er": "how often does ESR1 gene activity (from RNA) agree with the clinical ER test?",
+    "her2-positive-protein": "is the HER2 protein level different between HER2-positive and HER2-negative tumors?",
+    "subtype-classifier-rna": "can a model learn to predict a tumor's PAM50 subtype from its RNA data?",
+    "hormone-therapy-response": "does the ER-alpha protein level go with how tumors responded to hormone therapy?",
+    "subtype-mix": "what share of primary tumors falls in each PAM50 subtype?",
+}
+KPI_HELP = {
+    "Changes found": "How many differences the tool found between this release and release A, in any file.",
+    "Touch this question": "How many of those changes reach the files, columns or samples this question reads.",
+    "Decisions": "How many proposed fixes and problems a reviewer has approved, rejected or asked more about, on the "
+                 "Review page.",
+    "Sign-off": "Whether a named reviewer has signed off this result, on the Review page.",
+}
+SECTION_HELP = {
+    "verdict": "The tool's answer: is this release fit for the question as it is stated?",
+    "board": "The same release judged for every question, to show that the answer depends on what you ask.",
+    "next": "The first fixes or checks to do before using the data for this question.",
+    "cant": "Limits of this result: things the checks that ran can't see.",
+    "more": "The full reasoning, the question's details, and what the terms on this screen mean.",
+    "budget": "How many worst-case data errors the answer survives before it changes.",
+}
 OUTCOME_HELP = (f"OS: {GLOSSARY['OS']} PFI: {GLOSSARY['PFI']} DSS: disease-specific survival, the time to death from "
                 "the cancer itself or to the last follow-up. DFI: disease-free interval, the time until the disease "
                 "returns after treatment left no sign of it, or to the last follow-up.")
@@ -145,6 +179,9 @@ st.markdown("""
 .ct-sec.flat {font-size:1.05rem; font-weight:600; text-transform:none; letter-spacing:0; color:#132A3A; margin:26px 0 8px;}
 .ct-eyebrow.flat {font-size:.82rem; font-weight:600; text-transform:none; letter-spacing:0;}
 .chip.flat {border-radius:4px; padding:1px 8px; font-weight:600;}
+/* A wider sidebar (still dark, from config.toml), so its labels and help fit on one or two lines. */
+section[data-testid="stSidebar"][aria-expanded="true"] {width:380px !important; min-width:380px !important;}
+[title] {cursor:help;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,8 +194,9 @@ def plural(k: int, word: str) -> str:
     return f"{k} {word}{'' if k == 1 else 's'}"
 
 
-def chip(text: str, cls: str) -> str:
-    return f'<span class="chip {cls}">{esc(text)}</span>'
+def chip(text: str, cls: str, title: str = "") -> str:
+    tip = f' title="{esc(title)}"' if title else ""
+    return f'<span class="chip {cls}"{tip}>{esc(text)}</span>'
 
 
 def challenge_repo() -> pathlib.Path | None:
@@ -320,19 +358,27 @@ def keep(dst: str, src: str) -> None:
 with st.sidebar:
     st.markdown("### Cohort Control Tower")
     st.caption("Team Identity_Crisis · OncoSys Cancer AI Lab")
-    st.markdown('<div class="ct-side">Release</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-side" title="Which data release the tool checks, and how to open a new one.">Release</div>',
+                unsafe_allow_html=True)
     opts = release_options()
     labels = list(opts)
     if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
         st.session_state["release_label"] = st.session_state.pop("pending_release")
     if st.session_state.get("release_label") not in labels:
         st.session_state["release_label"] = labels[1] if len(labels) > 1 else labels[0]
-    release_label = st.selectbox("New release to check against release A", labels, key="release_label")
+    release_label = st.selectbox("New release to check against release A", labels, key="release_label",
+                                 help="Pick which new data release to compare against release A. \"Release A only\" "
+                                      "checks the reference data on its own.")
     with st.expander("Open a sealed envelope"):
+        st.caption("Unseal a judge's envelope; its release is then added to the picker above.")
         with st.form("envelope"):
-            num = st.text_input("Envelope number", placeholder="07 or practice")
-            words = st.text_input("Four-word code", placeholder="amber falcon river quartz")
-            if st.form_submit_button("Open it"):
+            num = st.text_input("Envelope number", placeholder="07 or practice",
+                                help="The number the judge gives you, for example 07, or \"practice\" for the "
+                                     "practice envelope.")
+            words = st.text_input("Four-word code", placeholder="amber falcon river quartz",
+                                  help="The four words that unlock the envelope, separated by spaces.")
+            if st.form_submit_button("Open it", help="Unseal the envelope with the organizers' script and add its "
+                                                     "release to the release picker."):
                 r = subprocess.run([sys.executable, "envelopes/unseal.py", num.strip(), *words.split()],
                                    cwd=CHALLENGE, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                    env={**os.environ, "PYTHONIOENCODING": "utf-8"})   # Windows pipes use cp1252
@@ -342,44 +388,59 @@ with st.sidebar:
                     st.session_state["pending_release"] = f"Envelope {name}"
                     st.rerun()
 
-    st.markdown('<div class="ct-side">Research question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-side" title="Which research question the release is judged for.">Research question</div>',
+                unsafe_allow_html=True)
     cards = list_cards() + st.session_state.get("custom_cards", [])
     titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
         st.session_state["card_title"] = list(titles)[0]
-    card_title = st.selectbox("Question card", list(titles), key="card_title")
+    card_title = st.selectbox("Question card", list(titles), key="card_title",
+                              help="Pick the research question to judge against the chosen release.")
     card = next(c for c in cards if c["title"] == card_title)
     with st.expander("Ask your own question"):
+        st.caption("Build a question from a few choices; the same rules judge it as the built-in questions.")
         kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
-                                                 "Response to a treatment"], key="q_kind")
+                                                 "Response to a treatment"], key="q_kind",
+                            help="Pick the kind of question to build; the choices below change with it.")
         if kind == "Survival by subtype":
             ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep",
                               help=OUTCOME_HELP)
             focus = st.selectbox("Subtype to focus on", ["", *SUBTYPES], key="q_focus",
-                                 format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"))
+                                 format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"),
+                                 help="Optionally pick one PAM50 subtype as the group the question looks at most "
+                                      "closely.")
             new = survival_question(ep, focus or None)
         elif kind == "A protein between groups":
             prot = st.selectbox("Protein (from the protein data, RPPA)", protein_rows(), key="q_prot", help=f"RPPA: {GLOSSARY['RPPA']}")
-            grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp")
+            grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp",
+                               help="Pick the lab result that splits tumors into the groups to compare.")
             new = protein_question(prot, grp)
         elif kind == "A prediction model":
-            lab = st.selectbox("Label to predict", list(LABELS), format_func=lambda k: LABELS[k], key="q_lab")
+            lab = st.selectbox("Label to predict", list(LABELS), format_func=lambda k: LABELS[k], key="q_lab",
+                               help="Pick what the model would try to predict for each tumor.")
             feats = st.multiselect("Data the model learns from", list(FEATURES), default=["protein_rppa.tsv.gz"],
-                                   format_func=lambda k: FEATURES[k], key="q_feats")
+                                   format_func=lambda k: FEATURES[k], key="q_feats",
+                                   help="Pick the data files the model would learn from.")
             new = model_question(lab, feats)
         else:
-            new = treatment_question(st.selectbox("Treatment", list(THERAPIES), key="q_ther"))
+            new = treatment_question(st.selectbox("Treatment", list(THERAPIES), key="q_ther",
+                                                  help="Pick the treatment whose response the question asks about."))
         st.caption(new["title"])
-        st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,))
+        st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,),
+                  help="Add this question to the question board and judge it on the chosen release.")
         st.caption("The same rules judge it as the cards in cards/. Nothing is saved unless you download it.")
         if card["id"].startswith("custom-"):
             st.download_button("Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
-                               f"{card['id']}.yaml", icon=":material/download:")
+                               f"{card['id']}.yaml", icon=":material/download:",
+                               help="Download the open question as a card file; `python -m tower check --card <file>` "
+                                    "runs it too.")
     with st.expander("Settings"):
+        st.caption("How checks that aren't built yet are counted.")
         if "allow_missing" not in st.session_state:     # the default lives here, so the toggle keeps its state by key
             st.session_state["allow_missing"] = True
         allow_missing = st.toggle("List unbuilt checks as pending", key="allow_missing",
-                                  help="Off: an unbuilt check counts as 'can't tell', the strict reading.")
+                                  help="On: a check that isn't built yet is listed as pending and doesn't decide the "
+                                       "verdict. Off: it counts as 'can't tell', the strict reading.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
 reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
 role = st.session_state.get("reviewer_role", "")
@@ -447,7 +508,7 @@ st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</s
             '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
 st.markdown(f'<div class="ct-ctx"><b>Release:</b> {esc(where)}<span class="sep">·</span>'
             f'<b>Question:</b> {esc(card.get("short_title") or card["title"])}<span class="sep">·</span>'
-            f'<b>Verdict:</b> {chip(ready["verdict"], vchip + " flat")}</div>',
+            f'<b>Verdict:</b> {chip(ready["verdict"], vchip + " flat", VERDICT_HELP[ready["verdict"]])}</div>',
             unsafe_allow_html=True)
 
 
@@ -467,14 +528,20 @@ def headline() -> str:
     return ready["reasons"][0] if ready["reasons"] else ""
 
 
+def board_help(q: dict) -> str:
+    """Hover help for a question-board button: what the question asks, then why it got its verdict."""
+    asks = QUESTION_PLAIN.get(q["id"]) or q["title"]
+    return f"**{q['short']}:** {asks}\n\n{VERDICT_HELP.get(q['verdict'], q['verdict'])}\n\nWhy: {q['reason']}"
+
+
 def page_overview() -> None:
     n_changes = len(findings["findings"]) if findings else 0
     signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
     left, right = st.columns([3, 2], gap="medium")
     left.markdown(f"""
 <div class="ct-hero" style="--c:{colour}; --bg:{tint}">
-  <div class="ct-eyebrow flat">Verdict for this question</div>
-  <div class="ct-verdict">{esc(ready['verdict'])}</div>
+  <div class="ct-eyebrow flat" title="{esc(SECTION_HELP["verdict"])}">Verdict for this question</div>
+  <div class="ct-verdict" title="{esc(VERDICT_HELP[ready['verdict']])}">{esc(ready['verdict'])}</div>
   <div class="ct-q">{esc(card['title'])}</div>
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
   <div class="ct-sum">{esc(headline())}</div>
@@ -493,26 +560,27 @@ def page_overview() -> None:
          f"by {signed_by}" if signed_by else "a reviewer signs on the Review page", "done" if signed_by else "todo"),
     ]
     right.markdown('<div class="ct-kpis">' + "".join(
-        f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
+        f'<div class="ct-step {s}" title="{esc(KPI_HELP[k])}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
         for k, v, sub, s in kpis) + "</div>", unsafe_allow_html=True)
     if ready.get("error_budget"):
-        st.markdown(f'<div class="ct-budget"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
+        st.markdown(f'<div class="ct-budget" title="{esc(SECTION_HELP["budget"])}"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
                     unsafe_allow_html=True)
 
-    st.markdown('<div class="ct-sec flat">Same release, every question: the verdict depends on the question</div>',
+    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["board"])}">Same release, every question: the verdict depends '
+                'on the question</div>',
                 unsafe_allow_html=True)
     st.caption("Click a question to open it here. The highlighted one is shown above.")
     qcols = st.columns(4)
     for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
         with qcols[i % 4]:
             st.button(q["short"], key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
-                      type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"], width="stretch")
+                      type="primary" if q["id"] == card["id"] else "secondary", help=board_help(q), width="stretch")
             st.caption(q["verdict"] + (f" · {plural(q['pending'], 'check')} not built" if q.get("pending") else "")
                        + (" · shown above" if q["id"] == card["id"] else ""))
 
     nxt, cant = st.columns(2, gap="medium")
     with nxt:
-        st.markdown('<div class="ct-sec flat">What to do next</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["next"])}">What to do next</div>', unsafe_allow_html=True)
         if ready["next_steps"]:
             st.markdown('<div class="ct-todo">' + "".join(
                 f'<div class="it"><span class="n">{i}</span><span>{esc(s["step"])}</span></div>'
@@ -524,11 +592,12 @@ def page_overview() -> None:
         if len(ready["next_steps"]) > 3:
             st.caption(f"{len(ready['next_steps']) - 3} more, with the evidence that would change each, on the Evidence page.")
     with cant:
-        st.markdown('<div class="ct-sec flat">What this can\'t tell you</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["cant"])}">What this can\'t tell you</div>',
+                    unsafe_allow_html=True)
         st.markdown('<div class="ct-cant">' + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"])
                     + "</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="ct-sec flat">More about this result</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["more"])}">More about this result</div>', unsafe_allow_html=True)
     with st.expander("The full reasoning"):
         st.markdown(ready["summary"])
         for r in ready["reasons"]:

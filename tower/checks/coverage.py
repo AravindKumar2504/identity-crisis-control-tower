@@ -72,13 +72,12 @@ def _base(release, card, issue_id, fields):
     if not base:
         need = [f for f in ((card.get("group") or {}).get("in_files") or []) if not release.has(f)]
         if need:
-            what = ", ".join(need)
-            plain = " and ".join(FILE_NAMES.get(f, f) for f in need)
+            plain =" and ".join(FILE_NAMES.get(f, f) for f in need)
+            # No next step or evidence here: inputs_present already asks for the missing file, and the verdict's
+            # "What to do next" would otherwise show the same step twice.
             return None, None, _unknown(issue_id, f"This question's group needs {plain}, which this release doesn't "
                                         "include, so missing values can't be counted", fields, card,
-                                        numbers={"base_group_samples": 0, "missing_files": need},
-                                        next_step=f"Get a release that includes {what}.",
-                                        evidence=f"A release containing {what}.")
+                                        numbers={"base_group_samples": 0, "missing_files": need})
         return None, None, _unknown(issue_id, "This question's group has no samples in this release, so missing "
                                     "values can't be counted", fields, card, numbers={"base_group_samples": 0},
                                     next_step="Check that every file in the card's group exists and is readable.",
