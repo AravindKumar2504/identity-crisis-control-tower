@@ -35,13 +35,13 @@ git clone https://github.com/AravindKumar2504/identity-crisis-control-tower.git
 python3 -m venv .venv && source .venv/bin/activate
 ```
 ```bash
-pip install -r oncosys-hackathon-challenge/requirements.txt -r identity-crisis-control-tower/requirements.txt
+pip install -r identity-crisis-control-tower/requirements.txt
 ```
 ```bash
 python oncosys-hackathon-challenge/data/tcga-brca/fetch.py
 ```
 
-On Windows, activate with `.venv\Scripts\activate`. On a Mac with Python from python.org, if `fetch.py` fails with a certificate error, run the "Install Certificates" command that came with Python once, then retry.
+The challenge repo's own requirements are for its starter notebook; the tool doesn't need them. On Windows, create the venv with `py -m venv .venv` and activate it with `.venv\Scripts\activate`. On a Mac with Python from python.org, if `fetch.py` fails with a certificate error, run the "Install Certificates" command that came with Python once, then retry.
 
 Then check everything in one command, from inside `identity-crisis-control-tower`. It checks Python and the packages, release A against its published checksums, and the sealed envelopes, then runs the practice envelope and compares the result with the organizers' reference output (about 3 seconds; add `--full` to also run the scorecard):
 
@@ -76,7 +76,7 @@ Add `--card all` to also judge every research-question card against the envelope
 python -m streamlit run app.py --server.address localhost
 ```
 
-Opens http://localhost:8501. Pick a release (an opened envelope, a test release, or release A alone) and a research question in the sidebar. The screen has five pages: **Overview** (the verdict and a one-line summary, the counts, the question board, what to do next and what the tool can't tell you), **What changed** (every finding with its samples, and a before-and-after table of the values behind each one), **Evidence** (every check with its rule and source, the analyses rerun, and the evidence trail), **Review and sign-off**, and **Fool the Tower**. In **Review and sign-off**, a reviewer enters a name and role, then approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
+Opens http://localhost:8501 (if that port is busy, Streamlit uses the next free one, such as 8502, and prints the address). Pick a release (an opened envelope, a test release, or release A alone) and a research question in the sidebar. The screen has five pages: **Overview** (the verdict and a one-line summary, the counts, the question board, what to do next and what the tool can't tell you), **What changed** (every finding with its samples, and a before-and-after table of the values behind each one), **Evidence** (every check with its rule and source, the analyses rerun, and the evidence trail), **Review and sign-off**, and **Fool the Tower**. In **Review and sign-off**, a reviewer enters a name and role, then approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
 
 **Error budget** (under the verdict on the Overview, and in the Analyses view): how wrong the data can get before the answer changes, counted in the errors the tool detects. On release A the ER-alpha answer survives 63 worst-case swaps between ER groups, 125 wrong ER labels or 146 copied profiles, and the screen says how much of that each release used.
 
