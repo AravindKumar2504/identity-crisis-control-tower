@@ -183,6 +183,7 @@ st.markdown("""
 /* A wider sidebar (still dark, from config.toml), so its labels and help fit on one or two lines. */
 section[data-testid="stSidebar"][aria-expanded="true"] {width:380px !important; min-width:380px !important;}
 [title] {cursor:help;}
+.ct-guide {font-size:.95rem; color:#21384A; line-height:1.6; margin:4px 0;}
 .ct-intro {font-size:.95rem; color:#21384A; line-height:1.55; margin:0 0 1rem; max-width:1100px;}
 </style>
 """, unsafe_allow_html=True)
@@ -259,7 +260,7 @@ def inputs_sig() -> tuple:
                  for p in sorted([*root.glob("cards/*.yaml"), *root.glob("tower/**/*.py")]))
 
 
-@st.cache_data(show_spinner="Checking the release...")
+@st.cache_data(show_spinner=False)     # the caller shows a spinner naming the release and question
 def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = (), card_json: str = ""):
     card = json.loads(card_json) if card_json else load_card(card_id)   # a question asked on screen has no file
     a = load_release(RAW, "release-A")
@@ -335,6 +336,8 @@ def add_question(card: dict) -> None:
         st.session_state["custom_cards"] = [c for c in st.session_state.get("custom_cards", [])
                                             if c["id"] != card["id"]] + [card]
     st.session_state["card_title"] = card["title"]
+    if st.session_state.get("release_label"):            # judging a question is an explicit request to see it
+        st.session_state["shown"] = (st.session_state["release_label"], card["title"])
 
 
 FOOL_FILES = {"protein_rppa.tsv.gz": "protein (RPPA)", "copy_number_gistic.tsv.gz": "copy number",
@@ -348,13 +351,47 @@ FOOL_FIELD_NAMES = {"ER status": "ER status (estrogen receptor)", "PR status": "
 def open_release(label: str) -> None:
     st.session_state["pending_release"] = label
     st.session_state["goto_overview"] = True
+    st.session_state["shown"] = (label, st.session_state.get("card_title"))   # an explicit request to see it
     for k in ("card_title", "allow_missing"):     # st.switch_page would reset these sidebar choices; keep them
         if k in st.session_state:
             st.session_state[k] = st.session_state[k]
 
 
 def pick(title: str) -> None:
+    """A question-board click opens that question on the same release, with its results."""
     st.session_state["card_title"] = title
+    st.session_state["shown"] = (st.session_state.get("release_label"), title)
+
+
+def show_results() -> None:
+    st.session_state["shown"] = (st.session_state.get("release_label"), st.session_state.get("card_title"))
+
+
+REVIEW_KEYS = ("|rep|", "|repr|", "|iss|", "|issr|", "|signoff")
+
+
+def has_decisions() -> bool:
+    """Has a reviewer decided anything in this browser session (on any release and question)?"""
+    review = st.session_state.get("review", {})
+    if any(v.get("repairs") or v.get("issues") or v.get("signed") for v in review.values()):
+        return True
+    return any(isinstance(k, str) and any(r in k for r in ("|rep|", "|iss|")) and st.session_state[k]
+               for k in list(st.session_state.keys()))
+
+
+def start_fresh() -> None:
+    """Back to the empty start: no selections, no results, no review decisions (the reviewer's name stays)."""
+    for k in list(st.session_state.keys()):
+        if k in ("release_label", "card_title", "shown", "review", "decided_at", "fool", "confirm_fresh",
+                 "pending_release", "demo_missing") or (isinstance(k, str) and any(r in k for r in REVIEW_KEYS)):
+            del st.session_state[k]
+
+
+def ask_fresh() -> None:
+    if has_decisions():
+        st.session_state["confirm_fresh"] = True       # confirm first: decisions would be lost
+    else:
+        start_fresh()
 
 
 # ------------------------------------------------------------------------------------------------ sidebar
@@ -370,11 +407,22 @@ with st.sidebar:
                 unsafe_allow_html=True)
     opts = release_options()
     labels = list(opts)
+    cards = list_cards() + st.session_state.get("custom_cards", [])
+    titles = {c["title"]: c["id"] for c in cards}
+    if st.query_params.get("demo") == "1" and not st.session_state.get("demo_done"):
+        st.session_state["demo_done"] = True               # once per session, so "Start fresh" still works
+        demo_q = next((c["title"] for c in cards if c["id"] == "er-alpha-by-er"), None)
+        if "Envelope practice" in labels and demo_q:
+            st.session_state.update(release_label="Envelope practice", card_title=demo_q,
+                                    shown=("Envelope practice", demo_q))
+        else:
+            st.session_state["demo_missing"] = True        # shown on the empty start until "Start fresh"
     if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
         st.session_state["release_label"] = st.session_state.pop("pending_release")
     if st.session_state.get("release_label") not in labels:
-        st.session_state["release_label"] = labels[1] if len(labels) > 1 else labels[0]
+        st.session_state["release_label"] = None                    # nothing chosen yet: the placeholder shows
     release_label = st.selectbox("New release to check against release A", labels, key="release_label",
+                                 placeholder="Choose the new data",
                                  help="Pick which new data release to compare against release A. \"Release A only\" "
                                       "checks the reference data on its own.")
     with st.expander("Open a sealed envelope"):
@@ -398,13 +446,11 @@ with st.sidebar:
 
     st.markdown('<div class="ct-side" title="Which research question the release is judged for.">Research question</div>',
                 unsafe_allow_html=True)
-    cards = list_cards() + st.session_state.get("custom_cards", [])
-    titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
-        st.session_state["card_title"] = list(titles)[0]
-    card_title = st.selectbox("Question card", list(titles), key="card_title",
+        st.session_state["card_title"] = None
+    card_title = st.selectbox("Question card", list(titles), key="card_title", placeholder="Choose a research question",
                               help="Pick the research question to judge against the chosen release.")
-    card = next(c for c in cards if c["title"] == card_title)
+    card = next((c for c in cards if c["title"] == card_title), None)
     with st.expander("Ask your own question"):
         st.caption("Build a question from a few choices; the same rules judge it as the built-in questions.")
         kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
@@ -437,11 +483,14 @@ with st.sidebar:
         st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,),
                   help="Add this question to the question board and judge it on the chosen release.")
         st.caption("The same rules judge it as the cards in cards/. Nothing is saved unless you download it.")
-        if card["id"].startswith("custom-"):
+        if card and card["id"].startswith("custom-"):
             st.download_button("Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
                                f"{card['id']}.yaml", icon=":material/download:",
                                help="Download the open question as a card file; `python -m tower check --card <file>` "
                                     "runs it too.")
+    st.button("Show results", key="show_results", type="primary", width="stretch", on_click=show_results,
+              disabled=not (release_label and card),
+              help="Check the chosen release for the chosen question. Choose both first.")
     with st.expander("Settings"):
         st.caption("How checks that aren't built yet are counted.")
         if "allow_missing" not in st.session_state:     # the default lives here, so the toggle keeps its state by key
@@ -449,15 +498,46 @@ with st.sidebar:
         allow_missing = st.toggle("List unbuilt checks as pending", key="allow_missing",
                                   help="On: a check that isn't built yet is listed as pending and doesn't decide the "
                                        "verdict. Off: it counts as 'can't tell', the strict reading.")
+    if st.session_state.get("confirm_fresh"):
+        st.warning("Starting fresh clears the review decisions made in this browser session. Start fresh anyway?")
+        f1, f2 = st.columns(2)
+        f1.button("Yes, start fresh", key="fresh_yes", type="primary", on_click=start_fresh)
+        f2.button("Cancel", key="fresh_no", on_click=lambda: st.session_state.pop("confirm_fresh", None))
+    else:
+        st.button("Start fresh", key="fresh", width="stretch", on_click=ask_fresh,
+                  help="Clear both choices, the results and this session's review decisions, back to the empty start.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
 reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
 role = st.session_state.get("reviewer_role", "")
 
+# ------------------------------------------------------------------------------------------------ gate
+HEAD = ('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
+        '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
+        '<span class="ct-note">Research use only</span></div>')
+shown = st.session_state.get("shown")
+if not (release_label and card) or tuple(shown or ()) != (release_label, card_title):
+    st.markdown(HEAD, unsafe_allow_html=True)
+    if shown and release_label and card:            # results were shown, then the selection changed
+        st.info(f"Selection changed: click Show results to check {release_label} for "
+                f"{card.get('short_title') or card['title']}.")
+    else:
+        if st.session_state.get("demo_missing"):
+            st.info("Open the practice envelope first (python -m tower doctor does this), then reload.")
+        st.markdown('<div class="ct-sec">Start here</div>'
+                    '<div class="ct-guide">1. Choose the new data in the sidebar, or open a sealed envelope.<br>'
+                    '2. Choose a research question.<br>3. Click <b>Show results</b>.</div>'
+                    '<div class="ct-sec">What the verdicts mean</div>'
+                    + "".join(f'<div class="ct-guide">{chip(v, VERDICT[v][2], VERDICT_HELP[v])} '
+                              f'{esc(VERDICT_HELP[v].split(": ", 1)[1])}</div>' for v in VERDICT),
+                    unsafe_allow_html=True)
+    st.stop()
+
 # ------------------------------------------------------------------------------------------------ analysis
 b_path = opts[release_label]
 try:
-    findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
-                                       json.dumps(card) if card["id"].startswith("custom-") else "")
+    with st.spinner(f"Checking {release_label} for {card.get('short_title') or card['title']}…"):
+        findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
+                                           json.dumps(card) if card["id"].startswith("custom-") else "")
 except Exception as e:  # never show a stack trace to a judge
     st.error(f"The check couldn't run: {e}")
     st.stop()
@@ -510,12 +590,9 @@ touching = {t["finding"] for t in ready["release_changes"]}
 
 # ------------------------------------------------------------------------------------------------ header (every page)
 colour, tint, vchip = VERDICT[ready["verdict"]]
-where = "release A on its own" if b_path is None else f"{release_label}, compared with release A"
-st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
-            '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
-            '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
-st.markdown(f'<div class="ct-ctx"><b>Release:</b> {esc(where)}<span class="sep">·</span>'
-            f'<b>Question:</b> {esc(card.get("short_title") or card["title"])}<span class="sep">·</span>'
+where = "release A on its own" if b_path is None else f"{release_label} compared with release A"
+st.markdown(HEAD, unsafe_allow_html=True)
+st.markdown(f'<div class="ct-ctx"><b>Now showing:</b> {esc(where)}, for: {esc(card["title"])}<span class="sep">·</span>'
             f'<b>Verdict:</b> {chip(ready["verdict"], vchip, VERDICT_HELP[ready["verdict"]])}</div>',
             unsafe_allow_html=True)
 
