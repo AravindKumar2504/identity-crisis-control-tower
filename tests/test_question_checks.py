@@ -140,6 +140,40 @@ class Bias(Base):
         self.assertEqual(self.one(site_shift, self.release(skip=(P,)), card).status, "unknown")
         self.assertEqual(self.one(site_shift, self.release(skip=(C,)), card).status, "unknown")
 
+    def a1_release(self, driver=None):
+        """ER labels mixed across the four sites; ER-alpha high for ER-positive tumors, or only at site `driver`."""
+        fr = synth.copy(self.fr)
+        tumors = [x for x in fr[C].sampleID if x[13:15] == "01"]
+        er = {x: ("Negative" if i % 3 == 0 else "Positive") for i, x in enumerate(tumors)}
+        fr[C].loc[fr[C].sampleID.isin(tumors), ER] = [er[x] for x in fr[C].sampleID if x in er]
+        for j, x in enumerate(fr[P].columns):
+            if x not in er:
+                continue
+            high = er[x] == "Positive" and (driver is None or x[5:7] == driver)
+            fr[P].loc["ERALPHA", x] = f"{(2.0 if high else -1.0) + 0.05 * (j % 5):.6f}"
+        return self.release(fr)
+
+    def test_leave_one_site_out_holds(self):
+        card = {**load_card("er-alpha-by-er"), "limits": {"site_shift_tvd": 0.0}}
+        x = self.one(site_shift, self.a1_release(), card)
+        loo = x.numbers["leave_one_site_out"]
+        self.assertEqual((x.status, len(loo["sites"]), loo["holds_everywhere"]), ("warn", 4, True))
+        self.assertIn("A1 still holds with each of the 4 largest hospitals left out", x.title)
+        self.assertIn("It already holds", x.next_step)
+
+    def test_leave_one_site_out_finds_the_hospital_that_drives_it(self):
+        card = {**load_card("er-alpha-by-er"), "limits": {"site_shift_tvd": 0.0}}
+        x = self.one(site_shift, self.a1_release(driver="B2"), card)
+        loo = x.numbers["leave_one_site_out"]
+        self.assertFalse(loo["holds_everywhere"])
+        self.assertEqual([r["site"] for r in loo["sites"] if not r["holds"]], ["B2"])
+        self.assertIn("A1 doesn't hold with site B2 left out", x.title)
+        self.assertIn("check the samples from site B2", x.next_step)
+
+    def test_leave_one_site_out_only_for_a1(self):
+        x = self.one(site_shift, self.a1_release(), load_card("her2-positive-protein"))
+        self.assertNotIn("leave_one_site_out", x.numbers)
+
 
 class Fitness(Base):
     def test_endpoint_suitability(self):
