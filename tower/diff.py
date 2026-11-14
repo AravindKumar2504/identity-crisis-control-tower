@@ -127,7 +127,8 @@ def compare(a: Release, b: Release) -> Comparison:
             continue
         compared.append(f)
         if f in ROW_FILES:
-            changes += _diff_rows(f, ta.frame, tb.frame, a, b)
+            changes += _duplicated(f, ta, tb, b)
+            changes += _diff_rows(f, ta.frame, tb.frame, a, b, skip=set(tb.duplicated_ids))
         else:
             changes += _diff_matrix(f, ta, tb, a, b)
     return Comparison(a, b, changes, unchanged, compared, notes)
@@ -355,7 +356,20 @@ def _all_blank(vals) -> bool:
 
 
 # ----------------------------------------------------------------------------------------------- row files
-def _diff_rows(f, da: pd.DataFrame, db: pd.DataFrame, a, b) -> list[Change]:
+def _duplicated(f, ta, tb, b) -> list[Change]:
+    """Sample ids that sit on more than one row in the new release (and didn't in release A): a join on the id counts
+    them twice. Their rows aren't compared value by value, because the tool can't tell which row is the real one."""
+    new = [s for s in tb.duplicated_ids if s not in set(ta.duplicated_ids)]
+    if not new:
+        return []
+    return [Change("join_inflation", f, new,
+                   f"In {f}, {_n(len(new), 'sample id')} {'appears' if len(new) == 1 else 'appear'} on more than one row in "
+                   f"{_rel(b.name)}, so anything that joins on the sample id counts {'it' if len(new) == 1 else 'them'} twice.",
+                   notes={s: f"on more than one row in {b.name}" for s in new}, evidence_release={s: "B" for s in new},
+                   detail={"duplicated_ids": new})]
+
+
+def _diff_rows(f, da: pd.DataFrame, db: pd.DataFrame, a, b, skip=frozenset()) -> list[Change]:
     out: list[Change] = []
     sa, sb = set(da.index), set(db.index)
     lost, gained = sorted(sa - sb), sorted(sb - sa)
@@ -366,7 +380,7 @@ def _diff_rows(f, da: pd.DataFrame, db: pd.DataFrame, a, b) -> list[Change]:
                           f"{len(set(cols_b) - set(cols_a))} added).",
                           detail={"columns_removed": sorted(set(cols_a) - set(cols_b)),
                                   "columns_added": sorted(set(cols_b) - set(cols_a))}))
-    common = sorted(sa & sb)
+    common = sorted((sa & sb) - set(skip))
     if common and common_cols:
         A = da.loc[common, common_cols].astype(str)
         B = db.loc[common, common_cols].astype(str)

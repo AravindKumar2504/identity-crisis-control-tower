@@ -46,18 +46,16 @@ def a1_range(r: dict) -> tuple[float, float]:
 
 # ------------------------------------------------------------------------------------------------ undo one change
 def _undo_matrix(samples, fa: pd.DataFrame, fb: pd.DataFrame) -> pd.DataFrame:
-    fb = fb.copy()
-    for s in samples:
-        if s in fa.columns:
-            fb[s] = fa[s]                 # swapped, edited, overwritten or lost: put release A's values back
-        elif s in fb.columns:
-            fb = fb.drop(columns=[s])     # an id that didn't exist in release A (a copy or a new sample)
-    return fb
+    fb = fb.drop(columns=[s for s in samples if s in fb.columns])     # the changed ids, and ids new in this release
+    back = [s for s in samples if s in fa.columns]                    # swapped, edited, overwritten or lost
+    return pd.concat([fb, fa[back].reindex(fb.index)], axis=1) if back else fb
 
 
 def _undo_clinical(change, ca: pd.DataFrame, cb: pd.DataFrame) -> pd.DataFrame:
     a, b = ca.set_index("sampleID"), cb.set_index("sampleID").copy()
     col = change.detail.get("column")
+    if change.kind == "join_inflation":            # keep one row per duplicated id, as in release A
+        b = b[~(b.index.isin(change.samples) & b.index.duplicated(keep="first"))]
     for s in change.samples:
         if col is not None and s in a.index and s in b.index:
             b.loc[s, col] = a.loc[s, col]
@@ -129,6 +127,8 @@ def conclusion(cmp_or_release, flagged: list[str] | None = None) -> dict:
             return {}
         after = a1_frames(_clinical(rel), _protein(rel))
         before, without = None, after
+    if len(after["pos"]) < 2 or len(after["neg"]) < 2:
+        return {}                   # nothing to judge: inputs_present or site_shift already says why
     lo, hi = a1_range(after)
     holds = after["difference"] > 0 and lo > 0
     shift = (abs(after["difference"] - before["difference"]) / max(abs(before["difference"]), 1e-9) * 100) if before else 0.0

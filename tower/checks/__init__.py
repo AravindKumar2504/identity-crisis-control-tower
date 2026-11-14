@@ -95,7 +95,10 @@ def run_checks(release, card: dict, allow_missing: bool = False) -> list[Issue]:
                              limitation="The tool cannot judge this part of the question yet."))
             continue
         try:
-            out.extend(fn(release, card))
+            got = fn(release, card)
+            if not isinstance(got, list) or not all(isinstance(x, Issue) for x in got):
+                raise TypeError("it must return a list of Issue objects")
+            out.extend(got)
         except Exception as e:      # a broken check must never take the whole report down
             out.append(Issue(id=name, title=f"Check '{name}' failed: {e}", status="unknown", material=True,
                              pre_existing=False, limitation="The check crashed, so this part can't be judged."))

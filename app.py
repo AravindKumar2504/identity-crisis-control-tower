@@ -150,10 +150,10 @@ def release_options() -> dict[str, str | None]:
     for p in sorted((CHALLENGE / "data" / "tcga-brca" / "releases").glob("*")):
         if p.is_dir():
             opts[f"Test release {p.name}"] = str(p)
-    planted = sorted((REPO / "out" / "fool").glob("planted-*"), key=lambda q: q.stat().st_mtime)[-5:]
+    planted = sorted((p for p in (REPO / "out" / "fool").glob("planted-*") if p.is_dir()),
+                     key=lambda q: q.stat().st_mtime)[-5:]
     for p in planted:
-        if p.is_dir():
-            opts[f"Planted release {p.name.split('-', 1)[1]}"] = str(p)
+        opts[f"Planted release {p.name.split('-', 1)[1]}"] = str(p)
     return opts
 
 
@@ -270,6 +270,9 @@ FOOL_LABELS = {"ER status": ("breast_carcinoma_estrogen_receptor_status", ["Nega
 def open_release(label: str) -> None:
     st.session_state["pending_release"] = label
     st.session_state["goto_overview"] = True
+    for k in ("card_title", "allow_missing"):     # st.switch_page would reset these sidebar choices; keep them
+        if k in st.session_state:
+            st.session_state[k] = st.session_state[k]
 
 
 def pick(title: str) -> None:
@@ -339,7 +342,9 @@ with st.sidebar:
             st.download_button("⬇ Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
                                f"{card['id']}.yaml")
     with st.expander("Settings"):
-        allow_missing = st.toggle("List unbuilt checks as pending", value=True,
+        if "allow_missing" not in st.session_state:     # the default lives here, so the toggle keeps its state by key
+            st.session_state["allow_missing"] = True
+        allow_missing = st.toggle("List unbuilt checks as pending", key="allow_missing",
                                   help="Off: an unbuilt check counts as 'can't tell', the strict reading.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
 reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
@@ -687,8 +692,8 @@ def render_analyses() -> None:
                         pairs = [("Samples", ours.get("n_samples"), theirs.get("n_samples")),
                                  ("Subtype counts", ", ".join(f"{k} {v}" for k, v in sorted((ours.get("counts") or {}).items())),
                                   ", ".join(f"{k} {v}" for k, v in sorted((theirs.get("counts") or {}).items())))]
-                    rows += [{"Analysis": aid, "Number": n, "This tool": str(o), "Organizers' script": str(r),
-                              "Match": "✅ same" if o == r else "❌ different"} for n, o, r in pairs]
+                    rows += [{"Analysis": aid, "Number": n, "Match": "✅ same" if o == r else "❌ different",
+                              "This tool": str(o), "Organizers' script": str(r)} for n, o, r in pairs]
                 st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
                 target = pathlib.Path(b_path) if b_path else RAW
                 try:

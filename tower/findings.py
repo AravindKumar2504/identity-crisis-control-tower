@@ -20,6 +20,7 @@ LIMITS = {
     "label_conflict": "A changed value can be a legitimate correction; the tool cannot see the pathology report "
                       "behind it.",
     "missing_data": "The tool sees values become empty, not why they were withdrawn.",
+    "join_inflation": "The tool sees that a sample id sits on more than one row, not which row is the real one.",
     "other": "The tool could not classify this change, so it reports it without guessing its cause.",
 }
 

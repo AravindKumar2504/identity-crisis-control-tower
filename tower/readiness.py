@@ -27,6 +27,7 @@ CHANGE_LIMITS = {
     "membership_change": "Why samples were removed or added: a redaction or withdrawn consent is legitimate, a processing loss is not.",
     "label_conflict": "Whether a changed value is a documented correction: the tool can't see the pathology or lab report behind it.",
     "missing_data": "Why values became empty or a file is missing.",
+    "join_inflation": "Which of the rows that share a sample id is the real one.",
     "other": "What caused a change the tool couldn't classify.",
 }
 GENERAL_LIMIT = ("Anything outside the files and fields this question reads, or whether a value matches the original "
@@ -84,6 +85,8 @@ _STEPS = {
     "gained": ("check where the {n} new sample{s} came from before including them", "Source records for the new samples."),
     "label_conflict": ("confirm the {n} changed '{col}' value{s} against the source records, and keep the release-A "
                        "values until they are explained", "A documented correction for each changed value."),
+    "join_inflation": ("keep one row per sample id for the {n} id{s} on more than one row (ask the data provider "
+                       "which row is right) before joining files", "One row per sample id, confirmed by the data provider."),
     "missing_data": ("get the missing values back from the data provider",
                      "A release where the values are present, matching its published fingerprint."),
     "other": ("look at the before and after values and decide whether to use them", "An explanation from the data provider."),

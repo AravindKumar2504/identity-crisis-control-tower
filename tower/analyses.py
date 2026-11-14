@@ -28,6 +28,10 @@ def _protein(rel: Release) -> pd.DataFrame:
 def run_a1(rel: Release) -> dict:
     clinical, protein = _clinical(rel), _protein(rel)
     er = clinical.set_index("sampleID")[ER]
+    twice = set(er.index[er.index.duplicated()]) & {str(s) for s in protein.columns}
+    if twice:                       # the reference script can't run either: each id must have one ER status
+        raise ValueError(f"A1 cannot run: {len(twice)} protein sample(s) appear on more than one clinical row "
+                         f"({', '.join(sorted(twice)[:3])})")
     samples = [s for s in protein.columns if sample_type(str(s)) == "01" and er.get(s) in ("Positive", "Negative")]
     if "ERALPHA" not in protein.index or not samples:
         raise ValueError("A1 cannot run: the ERALPHA row or the ER-labelled primary tumors are missing")

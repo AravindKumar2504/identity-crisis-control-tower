@@ -55,6 +55,7 @@ class Table:
     frame: pd.DataFrame
     layout: str                     # "rows" or "columns"
     exact_text: bool
+    duplicated_ids: list[str] = field(default_factory=list)   # row files: ids on more than one row (one row kept)
 
     def samples(self) -> list[str]:
         return list(self.frame.index) if self.layout == "rows" else list(self.frame.columns)
@@ -126,7 +127,10 @@ def _parse(path: pathlib.Path, name: str) -> Table:
         df = df.set_index(idcol, drop=True)
         if df.empty:
             raise ValueError("the table has no rows")
-        return Table(name, df, "rows", True)
+        dup = sorted(set(df.index[df.index.duplicated()]))
+        if dup:                     # one row per id, so every lookup is a single value; the comparison reports them
+            df = df[~df.index.duplicated(keep="first")]
+        return Table(name, df, "rows", True, dup)
     if name in TEXT_MATRICES:
         df = pd.read_csv(path, sep="\t", index_col=0, dtype=str, keep_default_na=False)
         if df.shape[1] == 0 or not any(str(c).startswith("TCGA-") for c in df.columns):
