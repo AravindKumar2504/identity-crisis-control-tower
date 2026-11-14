@@ -7,7 +7,7 @@ Draft v4, Fri 11/13 evening (every check built; Aravind presents). Every line be
 **Roles:** Aravind speaks and drives the laptop. A teammate who is there can drive instead, and Aakruti can take questions on the release A checks.
 
 **Before you start:**
-- The screen is open (`python -m streamlit run app.py --server.address localhost`) with "Envelope practice" picked and the ER-alpha question showing.
+- The screen is open (`python -m streamlit run app.py --server.address localhost`) at http://localhost:8501/?demo=1, which opens straight on "Envelope practice" and the ER-alpha question. The plain address opens an empty start: pick both in the sidebar and click **Show results**.
 - A terminal is open in `identity-crisis-control-tower` with the venv on, and `python -m tower doctor` ends with "Ready for the sealed envelope."
 - The browser is zoomed so all 8 question buttons on the Overview are visible and the top menu shows all five pages (a narrow window folds them into "N more").
 - On **Review and sign-off**, a reviewer name and role are filled in. They stay while you move between pages; a browser refresh clears them.
@@ -75,7 +75,7 @@ Draft v4, Fri 11/13 evening (every check built; Aravind presents). Every line be
    - the verdict line
    - each finding: its kind, how severe, how many samples, and which analysis it touches
    - the `valid` line (the organizers' validator passed) and the total time
-3. Refresh the screen. The opened envelope appears in the sidebar's release list; pick it and show the question board on the Overview.
+3. Refresh the screen. The opened envelope appears in the sidebar's release list; pick it, click **Show results**, and show the question board on the Overview.
 4. **If the command fails:** use the sidebar's "Open a sealed envelope" instead. If that also fails, unseal with the organizers' script, then compare. The opened folder is named E plus two digits (envelope 7 opens as `E07`).
 
    ```bash
