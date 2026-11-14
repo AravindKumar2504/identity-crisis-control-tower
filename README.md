@@ -2,7 +2,15 @@
 
 Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open Accelerator, OncoSys AI, Northeastern University, Red Hat; November 11-14, 2026). Track 1: Cohort Firewall.
 
-**Demo video (3:20):** [docs/demo.mp4](docs/demo.mp4), on the practice envelope. The narration is a synthetic voice (Kokoro, run locally).
+**In one paragraph:** when a new version of the TCGA breast cancer data arrives, Cohort Control Tower compares it with the original release sample by sample, names every sample that was swapped, copied, lost or relabelled, reruns only the analyses those changes touch, and says whether the new data can still answer a given research question: Ready, Conditional, Blocked or Insufficient Evidence, with the reasons, the next steps and what it can't tell you. It is for the research data engineer who looks after an analysis-ready copy of the data, and a person approves or rejects every proposed fix. Research use only.
+
+**Demo video (3:20):** [docs/demo.mp4](docs/demo.mp4), on the practice envelope. The narration is a synthetic voice (Kokoro, run locally). **Pitch deck:** [docs/Cohort-Control-Tower-pitch.pptx](docs/Cohort-Control-Tower-pitch.pptx).
+
+**Run the live demo** (after the [Quick start](#quick-start-fresh-machine), from inside `identity-crisis-control-tower`):
+
+1. The sealed envelope, with the number and four words the judge gives you: `python -m tower envelope <number> <word1> <word2> <word3> <word4>`
+2. The review screen: `python -m streamlit run app.py --server.address localhost`, then open http://localhost:8501
+3. Straight to the practice envelope's ER-alpha result: http://localhost:8501/?demo=1
 
 https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 
@@ -18,10 +26,10 @@ https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 - On the organizers' practice envelope it reports the same swap, the same five copies with their sources, the same five lost samples and the same A1 result (3.051 to 3.019) as the organizers' reference output, and its file passes `format/validate.py`. Unsealing plus checking takes about 2 seconds.
 - Scorecard: 20 of 20 test releases pass. 13 are built with the organizers' `make_release.py` (swaps, copies, losses and relabels across all five files, chains of swaps, combinations, and a no-change release). 7 more test changes their generator can't make: edited values, a removed protein row, edited survival outcomes, a renamed sample id, and three damaged releases (a truncated file, a comma-separated file and an empty file), which are refused with Insufficient Evidence instead of crashing. Their answers are written into `EXPECTED.json` when each release is built, before the tool runs. Every planted sample found, nothing extra reported, about a second per release. We also built 481 releases with the organizers' generator at random settings: 476 match its answer keys exactly. In four of the other five, the answer key lists a change that left no trace in the data (a copy that a later change deleted, or a value changed and then changed back); the fifth is a copy whose original was later removed, which the tool reports as a rename.
 - Research-question cards and verdicts work: eight cards (`cards/`) cover all four verdicts, and the verdict changes when the question or the release changes (for example, overall survival in Luminal A is Blocked while progression-free interval in the same tumors is not; ESR1 expression vs ER status is Insufficient Evidence on the practice envelope because envelopes have no RNA; and ER-alpha by ER status is Conditional even on release A, because requiring protein data shifts the group's hospital mix by 0.155, over the card's 0.15 limit).
-- Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, and shown with the finding. Severity follows the kind of change first (a swap across ER groups or copied profiles is high) and that measured effect otherwise (high at half a percent or more); on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium. For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
+- Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, and shown with the finding. Severity follows the kind of change first (a swap across ER groups or copied samples is high) and that measured effect otherwise (high at half a percent or more); on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium. For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
 - The review screen works (`python -m streamlit run app.py --server.address localhost`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. It opens empty and shows results only after you choose a release and a question and click Show results. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
-- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. The demo video is linked at the top. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
+- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. The demo video is linked at the top. Who did what: [docs/PLAN.md](docs/PLAN.md).
 - Tests: 99 automated tests (`python -m unittest discover -s tests`). 81 run with no download (on small made-up releases, plus the AI summary's guards); the other 18 need release A and are skipped without it. See [Run the tests](#run-the-tests).
 - Saturday fixes: the subtype chart on Evidence > Analyses drew no bars; a repeated row name in a data file crashed the comparison; an ER group left with no values gave `nan` results; the sign-off and Fool the Tower could fail on Windows.
 - Saturday additions: a sample id repeated in a file is reported as its own finding and is never counted twice by A1 or A2; a sign-off counts only after the organizers' validator passes; `readiness.json` records how the 95% range is computed (percentile bootstrap, 1,000 resamples, seed 7); `report.md` and the What changed page count identical, changed, missing and new samples file by file.
@@ -38,9 +46,24 @@ git clone https://github.com/disleveK/oncosys-hackathon-challenge.git
 ```bash
 git clone https://github.com/AravindKumar2504/identity-crisis-control-tower.git
 ```
+
+Mac or Linux:
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 ```
+
+Windows (Command Prompt or PowerShell):
+
+```bash
+py -m venv .venv
+```
+```bash
+.venv\Scripts\activate
+```
+
+Then, on any system:
+
 ```bash
 pip install -r identity-crisis-control-tower/requirements.txt
 ```
@@ -48,7 +71,7 @@ pip install -r identity-crisis-control-tower/requirements.txt
 python oncosys-hackathon-challenge/data/tcga-brca/fetch.py
 ```
 
-The challenge repo's own requirements are for its starter notebook; the tool doesn't need them. On Windows, create the venv with `py -m venv .venv` and activate it with `.venv\Scripts\activate`. On a Mac with Python from python.org, if `fetch.py` fails with a certificate error, run the "Install Certificates" command that came with Python once, then retry.
+The challenge repo's own requirements are for its starter notebook; the tool doesn't need them. On a Mac with Python from python.org, if `fetch.py` fails with a certificate error, run the "Install Certificates" command that came with Python once, then retry.
 
 Then check everything in one command, from inside `identity-crisis-control-tower`. It checks Python and the packages, release A against its published checksums, and the sealed envelopes, then runs the practice envelope and compares the result with the organizers' reference output (about 3 seconds; add `--full` to also run the scorecard):
 
@@ -216,7 +239,7 @@ The optional AI summary uses only Python's standard library. Its local model run
 - Subtype and HER2 columns (cited by the label and design checks): Cancer Genome Atlas Network. Comprehensive molecular portraits of human breast tumours. *Nature* 490, 61–70 (2012).
 - PAM50 (cited by the model-design rule): Parker, J.S. et al. Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes. *J Clin Oncol* 27, 1160–1167 (2009).
 
-No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); a Gitleaks scan of the full history on Friday found none.
+No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); a Gitleaks scan of the full history (69 commits) on Saturday found none.
 
 The verdicts and findings use no AI model. The optional AI summary runs on a local model, or on Claude with a key the user supplies; no key is stored here.
 
@@ -228,6 +251,4 @@ Identity_Crisis, Track 1 (Cohort Firewall):
 
 - Aravind Sundaravadivelu
 - Aakruti Ghatole
-- Chirag Suthar
-- Madhu Vadhani Madasamy
 - Romario Joseph
