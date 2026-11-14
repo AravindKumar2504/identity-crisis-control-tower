@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -302,7 +303,8 @@ with st.sidebar:
             words = st.text_input("Four-word code", placeholder="amber falcon river quartz")
             if st.form_submit_button("Open it"):
                 r = subprocess.run([sys.executable, "envelopes/unseal.py", num.strip(), *words.split()],
-                                   cwd=CHALLENGE, capture_output=True, text=True)
+                                   cwd=CHALLENGE, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                   env={**os.environ, "PYTHONIOENCODING": "utf-8"})   # Windows pipes use cp1252
                 st.code((r.stdout + r.stderr)[-1500:])
                 if r.returncode == 0:
                     name = "practice" if num.strip().lower() == "practice" else f"E{int(num.strip().upper().lstrip('E')):02d}"

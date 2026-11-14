@@ -136,6 +136,9 @@ def run_check(card_ref: str, release_dir, against_dir=None, out: pathlib.Path | 
 
 
 def main(argv=None) -> None:
+    for stream in (sys.stdout, sys.stderr):       # Windows writes pipes and files in cp1252, which has no check marks
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     p = argparse.ArgumentParser(prog="python -m tower", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)

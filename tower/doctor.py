@@ -105,7 +105,8 @@ def run(challenge_arg: str | None = None, full: bool = False) -> int:
     print("\nThe practice envelope, end to end")
     t0 = time.time()
     u = subprocess.run([sys.executable, "envelopes/unseal.py", "practice", *PRACTICE_CODE], cwd=ch,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})   # unseal.py prints a check mark; Windows pipes use cp1252
     if not r.line(u.returncode == 0, "the practice envelope opens", (u.stderr or u.stdout).strip()[-300:]):
         return r.end()
     from .cli import run_compare
