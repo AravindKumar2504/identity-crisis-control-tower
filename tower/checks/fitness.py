@@ -94,23 +94,50 @@ def endpoint_suitability(release, card):
                       material=False, pre_existing=False)]
     if not release.has("survival.tsv"):
         return [Issue(id="endpoint_suitability", title="No survival file, so the endpoint can't be judged",
-                      status="unknown", material=True, pre_existing=False, fields=["survival.tsv"],
+                      status="unknown", material=True, pre_existing=False,
+                      fields=[f"survival.tsv:{name}", f"survival.tsv:{name}.time"],
                       rule="An endpoint can only be judged from the survival records.", source=CDR,
                       evidence_needed="A release with survival.tsv.")]
+    if not release.has("clinical.tsv"):
+        state = "unreadable" if "clinical.tsv" in release.unreadable else "missing"
+        return [Issue(id="endpoint_suitability", title=f"The clinical file is {state}, so the endpoint can't be judged "
+                      "for this group", status="unknown", material=True, pre_existing=False,
+                      fields=["clinical.tsv:PAM50Call_RNAseq"],
+                      rule="An endpoint is judged for the group studied, which is read from the clinical file.",
+                      source=CDR, limitation="Without the clinical file the tool can't tell which tumors are in the group.",
+                      evidence_needed="A release with a readable clinical.tsv.")]
     sv = release.table("survival.tsv").frame
     group = sorted(card_group(release, card) & set(sv.index))
     cl = release.table("clinical.tsv").frame
-    if focus and "PAM50Call_RNAseq" in cl.columns:
-        sub = [s for s in group if cl.at[s, "PAM50Call_RNAseq"] == focus]
-    else:
-        sub = group
+    if focus and "PAM50Call_RNAseq" not in cl.columns:
+        who = SUBTYPE_NAMES.get(focus, focus)
+        return [Issue(id="endpoint_suitability", title=f"The clinical file has no PAM50Call_RNAseq column, so the {who} "
+                      "tumors can't be picked out and the endpoint can't be judged for them", status="unknown",
+                      material=True, pre_existing=False, fields=["clinical.tsv:PAM50Call_RNAseq"],
+                      numbers={"missing_fields": ["PAM50Call_RNAseq"], "focus_subtype": focus},
+                      rule="An endpoint is judged for the subtype the question focuses on, read from PAM50Call_RNAseq.",
+                      source=CDR, limitation="Without the subtype column the tool can't tell which tumors are in focus.",
+                      next_step="Get a release whose clinical file includes PAM50Call_RNAseq.",
+                      evidence_needed="A release with clinical.tsv:PAM50Call_RNAseq.")]
+    sub = [s for s in group if cl.at[s, "PAM50Call_RNAseq"] == focus] if focus else group
+    absent = [c for c in (name, f"{name}.time") if c not in sv.columns]
+    if absent:
+        return [Issue(id="endpoint_suitability", title=f"The survival file has no {' or '.join(absent)} column, so the "
+                      "endpoint can't be judged", status="unknown", material=True, pre_existing=False,
+                      fields=[f"survival.tsv:{c}" for c in absent], numbers={"missing_fields": absent},
+                      rule="An endpoint can only be judged from its event and time columns.", source=CDR,
+                      evidence_needed=f"A release whose survival.tsv includes {', '.join(absent)}.")]
     ev = pd.to_numeric(sv.loc[sub, name], errors="coerce") if sub else pd.Series(dtype=float)
     tm = pd.to_numeric(sv.loc[sub, f"{name}.time"], errors="coerce") if sub else pd.Series(dtype=float)
     months = follow_up_months(tm, ev) if sub else float("nan")
     numbers = {"endpoint": name, "focus_subtype": focus or "all", "samples": len(sub),
                "events": int((ev == 1).sum()), "censored": int((ev == 0).sum()),
-               "median_follow_up_months": round(months, 1), "follow_up_method": "reverse Kaplan-Meier",
+               "median_follow_up_months": round(months, 1) if np.isfinite(months) else None,
+               "follow_up_method": "reverse Kaplan-Meier",
                "median_observed_time_months": round(float(tm.median() / 30.44), 1) if len(tm.dropna()) else None}
+    follow_up = (f"median follow-up is {numbers['median_follow_up_months']} months"
+                 if numbers["median_follow_up_months"] is not None
+                 else "median follow-up can't be estimated from these records")
     who = f"{SUBTYPE_NAMES.get(focus, focus)} " if focus else ""
     fields = [f"survival.tsv:{name}", f"survival.tsv:{name}.time", "clinical.tsv:PAM50Call_RNAseq"]
     label = ENDPOINTS[name]
@@ -121,16 +148,17 @@ def endpoint_suitability(release, card):
         nxt, need = "", ""
     elif name == "OS" and focus == "LumA":
         status = "block"
-        title = (f"Overall survival can't support a Luminal A comparison here: median follow-up is {numbers['median_follow_up_months']} "
-                 f"months, and the TCGA curators advise against overall survival for Luminal A")
+        title = (f"Overall survival can't support a Luminal A comparison here: {follow_up}, and the TCGA curators "
+                 "advise against overall survival for Luminal A")
         rule = ("Block when the curators advise against the endpoint for the group studied: Luminal A tumors may take "
                 "10 years or more to recur, far beyond this follow-up.")
         nxt = "Use progression-free interval (PFI), which the curators recommend for breast cancer without reservation."
         need = "Follow-up long enough for Luminal A tumors (10 years or more), or an outcome source with that follow-up."
     else:
         status = "warn"
-        title = (f"{label.capitalize()} needs caution for breast cancer: median follow-up is "
-                 f"{numbers['median_follow_up_months']} months with {numbers['events']} events")
+        title = (f"{label.capitalize()} needs caution for breast cancer: {follow_up}"
+                 + (" with " if numbers["median_follow_up_months"] is not None else " (")
+                 + f"{numbers['events']} events" + ("" if numbers["median_follow_up_months"] is not None else ")"))
         rule = "The curators suggested caution for OS and DSS in breast cancer because follow-up is short."
         nxt = "Report PFI or DFI as the main endpoint and treat this endpoint as secondary."
         need = "Longer follow-up for the group studied."
