@@ -23,6 +23,8 @@ REPS, SEED = 1000, 7
 def a1_frames(clin: pd.DataFrame, prot: pd.DataFrame) -> dict:
     er = clin.set_index("sampleID")[ER]
     samples = [s for s in prot.columns if sample_type(str(s)) == "01" and er.get(s) in ("Positive", "Negative")]
+    if int((prot.index == "ERALPHA").sum()) != 1:
+        raise ValueError("the protein file must have exactly one ERALPHA row")
     vals = prot.loc["ERALPHA", samples].astype(float)
     # Blank cells are skipped, as A1 and the organizers' reference_analyses.py do (pandas means skip them); n still
     # counts every ER-labelled sample, as theirs does.
@@ -36,6 +38,13 @@ def a2_frames(clin: pd.DataFrame) -> dict:
     c = clin[clin.sampleID.str[13:15] == "01"].dropna(subset=[PAM50])
     counts = c[PAM50].value_counts()
     return {"percent": {k: 100 * v / counts.sum() for k, v in counts.items()}, "n": int(counts.sum())}
+
+
+def range_method() -> dict:
+    """How the 95% range is computed."""
+    return {"method": "percentile bootstrap: samples are redrawn with replacement within each ER group",
+            "resamples": REPS, "seed": SEED, "interval": "2.5th to 97.5th percentile of the resampled differences",
+            "generator": "numpy.random.default_rng", "numpy": np.__version__}
 
 
 def a1_range(r: dict) -> tuple[float, float]:
@@ -101,9 +110,10 @@ def effects(cmp, changes, impact: dict) -> dict:
         res = {}
         if "A1" in hits and now_a1 is not None:
             undone = a1_frames(cb, pb)["difference"]
-            res["A1"] = {"measure": "ER+ minus ER- difference", "now": round(now_a1, 3), "if_undone": round(undone, 3),
-                         "change": round(now_a1 - undone, 3),
-                         "relative_pct": round(abs(now_a1 - undone) / max(abs(undone), 1e-9) * 100, 2)}
+            if np.isfinite(now_a1) and np.isfinite(undone):
+                res["A1"] = {"measure": "ER+ minus ER- difference", "now": round(now_a1, 3),
+                             "if_undone": round(undone, 3), "change": round(now_a1 - undone, 3),
+                             "relative_pct": round(abs(now_a1 - undone) / max(abs(undone), 1e-9) * 100, 2)}
         if "A2" in hits:
             undone = a2_frames(cb)["percent"]
             keys = set(undone) | set(now_a2)
@@ -139,6 +149,9 @@ def conclusion(cmp_or_release, flagged: list[str] | None = None) -> dict:
     status = "reversed" if reversed_ else ("holds" if holds else "fragile")
     return {"analysis": "A1", "claim": "ER-positive primary tumors have higher mean ER-alpha protein than ER-negative ones",
             "status": status, "difference": round(after["difference"], 3), "range_95": [round(lo, 3), round(hi, 3)],
+            "range_method": range_method(),
             "release_a_difference": round(before["difference"], 3) if before else None,
             "headline_shift_pct": round(shift, 2), "flagged_samples": len(flagged or []),
-            "difference_without_flagged": round(without["difference"], 3), "n": after["n"]}
+            "difference_without_flagged": (round(without["difference"], 3) if np.isfinite(without["difference"])
+                                           else None),
+            "n": after["n"]}

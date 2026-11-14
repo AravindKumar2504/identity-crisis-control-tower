@@ -17,6 +17,7 @@ from .budget import budget as error_budget
 from .cards import card_fields, card_group
 from .checks import Issue, run_checks
 from .diff import Comparison
+from .findings import finite
 from .release import ROW_FILES, Release
 from .robustness import a1_frames, conclusion
 
@@ -166,7 +167,8 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
             else:
                 try:
                     out = an.run(release)
-                    analyses[an.id] = {"status": "run", "result": {k: v for k, v in out.items() if k != "sample_ids"}}
+                    analyses[an.id] = {"status": "run", "result": {k: v for k, v in out.items()
+                                                                   if k not in ("sample_ids", "repeated_ids")}}
                 except Exception as e:
                     analyses[an.id] = {"status": "not_run", "reason": str(e)}
 
@@ -213,7 +215,7 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
         "disclaimer": "Research use only. No diagnosis, treatment advice, risk score or clinical claim. "
                       "A person must review the evidence before this data is used.",
     }
-    return doc
+    return finite(doc)
 
 
 def _conclusion_issue(r: dict, compared: bool) -> Issue:
@@ -228,13 +230,16 @@ def _conclusion_issue(r: dict, compared: bool) -> Issue:
         status = "pass"
         title = f"The conclusion holds: ER+ minus ER- difference {r['difference']} (95% range {lo} to {hi})"
         if compared:
-            title += (f"; release A {r['release_a_difference']}; without the {r['flagged_samples']} flagged samples "
-                      f"{r['difference_without_flagged']}")
+            title += f"; release A {r['release_a_difference']}"
+            if r.get("difference_without_flagged") is not None:
+                title += f"; without the {r['flagged_samples']} flagged samples {r['difference_without_flagged']}"
+            elif r["flagged_samples"]:
+                title += f"; all {r['flagged_samples']} samples it uses are flagged, so there is no result without them"
     return Issue(id="conclusion_holds", title=title, status=status, material=True, pre_existing=False,
                  fields=["clinical.tsv:breast_carcinoma_estrogen_receptor_status", "protein_rppa.tsv.gz:ERALPHA"],
                  rows=[], numbers=r,
                  rule="Holds if the ER+ minus ER- difference is positive and its 95% range (1,000 resamples of the "
-                      "samples) stays above zero; fragile if the range includes zero; reverses if its sign flips "
+                      "samples, seed 7) stays above zero; fragile if the range includes zero; reverses if its sign flips "
                       "between releases.",
                  source="Resampling of this release's samples; A1 computed as in the organizers' reference_analyses.py",
                  limitation="The range covers sampling variation only; it can't see systematic errors such as a "

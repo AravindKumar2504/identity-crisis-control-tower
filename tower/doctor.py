@@ -20,8 +20,8 @@ import time
 REPO = pathlib.Path(__file__).resolve().parent.parent
 PRACTICE_CODE = ["orange", "meadow", "pilot", "lantern"]      # the public practice code (envelopes/README.md)
 PACKAGES = [("pandas", "pandas"), ("numpy", "numpy"), ("jsonschema", "jsonschema"), ("yaml", "pyyaml"),
-            ("cryptography", "cryptography"), ("streamlit", "streamlit")]
-INSTALL = "pip install -r ../oncosys-hackathon-challenge/requirements.txt -r requirements.txt"
+            ("cryptography", "cryptography"), ("streamlit", "streamlit"), ("altair", "altair")]
+INSTALL = "pip install -r requirements.txt"
 
 
 class Report:
@@ -39,7 +39,7 @@ class Report:
     def end(self) -> int:
         if self.problems:
             n = len(self.problems)
-            print(f"\nNot ready: fix the {n} {'item' if n == 1 else 'items'} marked ✗ before Saturday.")
+            print(f"\nNot ready: fix the {n} {'item' if n == 1 else 'items'} marked ✗ before the demo.")
             return 1
         print("\nReady for the sealed envelope.")
         return 0
@@ -90,7 +90,8 @@ def run(challenge_arg: str | None = None, full: bool = False) -> int:
     for rel in ("envelopes/unseal.py", "format/validate.py", "data/tcga-brca/reference_analyses.py"):
         r.line((ch / rel).exists(), f"{rel} is there", "Run git pull in the challenge repo.")
     raw, sources = ch / "data" / "tcga-brca" / "raw", ch / "data" / "tcga-brca" / "sources.csv"
-    expected = {row["file"]: row["sha256"] for row in csv.DictReader(open(sources))} if sources.exists() else {}
+    expected = ({row["file"]: row["sha256"] for row in csv.DictReader(open(sources, encoding="utf-8"))}
+                if sources.exists() else {})
     if not r.line(bool(expected), "sources.csv lists release A's published checksums", "Run git pull in the challenge repo."):
         return r.end()
     for f, h in expected.items():
@@ -118,7 +119,7 @@ def run(challenge_arg: str | None = None, full: bool = False) -> int:
     r.line(val.returncode == 0, "findings.json passes the organizers' validator", (val.stdout or val.stderr).strip()[-300:])
     ref_path = ch / "format" / "examples" / "control-tower-practice-B.json"
     if ref_path.exists():
-        ref = json.loads(ref_path.read_text())
+        ref = json.loads(ref_path.read_text(encoding="utf-8"))
         mine, theirs = _cited(doc), _cited(ref)
         r.line(mine == theirs, f"cites the same {len(theirs)} samples, under the same kinds, as the organizers' reference"
                if mine == theirs else f"cites different samples from the organizers' reference: missing "

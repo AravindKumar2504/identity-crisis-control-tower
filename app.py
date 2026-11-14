@@ -29,7 +29,7 @@ from tower.cards import list_cards, load_card  # noqa: E402
 from tower.checks import LOAD_ERRORS  # noqa: E402
 from tower.questions import (ENDPOINTS, FEATURES, GROUPINGS, LABELS, SUBTYPES, THERAPIES,  # noqa: E402
                              model_question, protein_question, survival_question, treatment_question)
-from tower.diff import compare  # noqa: E402
+from tower.diff import compare, file_summary  # noqa: E402
 from tower.evidence import before_after  # noqa: E402
 from tower.plant import plant, score  # noqa: E402
 from tower.findings import build  # noqa: E402
@@ -37,7 +37,7 @@ from tower.readiness import assess  # noqa: E402
 from tower.release import ROW_FILES, load_release  # noqa: E402
 from tower.cli import plain_report  # noqa: E402
 from tower.review import (ISSUE_CHOICES, REPAIR_CHOICES, SIGNOFF_CHOICES, missing_decisions, now,  # noqa: E402
-                          record_markdown, signed, with_decisions)
+                          record_markdown, save as save_review, signed, with_decisions)
 
 st.set_page_config(page_title="Cohort Control Tower", page_icon=":material/cell_tower:", layout="wide")
 
@@ -266,12 +266,12 @@ def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = 
     card = json.loads(card_json) if card_json else load_card(card_id)   # a question asked on screen has no file
     a = load_release(RAW, "release-A")
     if b_path is None:
-        return None, assess(card, a, allow_missing=allow_missing), []
+        return None, assess(card, a, allow_missing=allow_missing), [], []
     b = load_release(b_path)
     cmp = compare(a, b)
     results, impact = rerun(a, b, cmp.changes)
     findings = build(cmp, results, impact)
-    return findings, assess(card, b, cmp, results, allow_missing=allow_missing), membership(cmp)
+    return findings, assess(card, b, cmp, results, allow_missing=allow_missing), membership(cmp), file_summary(cmp)
 
 
 @st.cache_data(show_spinner="Judging every question on this release...")
@@ -537,7 +537,7 @@ if not (release_label and card) or tuple(shown or ()) != (release_label, card_ti
 b_path = opts[release_label]
 try:
     with st.spinner(f"Checking {release_label} for {card.get('short_title') or card['title']}…"):
-        findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
+        findings, ready, members, files = analyze(b_path, card["id"], allow_missing, inputs_sig(),
                                            json.dumps(card) if card["id"].startswith("custom-") else "")
 except Exception as e:  # never show a stack trace to a judge
     st.error(f"The check couldn't run: {e}")
@@ -821,8 +821,20 @@ def page_changed() -> None:
                         + f'<span class="ct-small">{esc(findings["verdict_reason"])}</span>', unsafe_allow_html=True)
             for n in findings.get("notes", []):
                 c1.caption(n)
-            c2.download_button("Release notes", plain_report(findings), "release_notes.md", width="stretch", icon=":material/download:",
+            c2.download_button("Release notes", plain_report(findings, files), "release_notes.md", width="stretch", icon=":material/download:",
                                help="Every finding in plain English, as Markdown.")
+        if files:
+            st.markdown('<div class="ct-sec">File by file: identical, changed, missing and new samples</div>',
+                        unsafe_allow_html=True)
+            st.dataframe(pd.DataFrame([{
+                "File": r["file"], "Samples in release A": r["in_release_a"],
+                "Identical": "" if r["identical"] is None else f"{r['identical']} of {r['in_release_a']}",
+                "Changed": r["changed"], "Missing": r["missing"], "New": r["new"],
+                "Note": "; ".join(x for x in (r["status"] if r["status"] != "compared" else "", r["structure"]) if x)}
+                for r in files]), hide_index=True, width="stretch")
+            st.caption("Identical means the sample holds the same values in both releases (same fingerprint). These "
+                       "are counts per file, not a score, and they don't show that a sample's files belong to the "
+                       "same patient.")
         if members:
             st.markdown('<div class="ct-sec">Same count, different members</div>', unsafe_allow_html=True)
             for m in members:
@@ -897,10 +909,11 @@ def a2_chart(before: dict, after: dict | None):
     rows = [{"subtype": k, "release": "Release A", "percent": v} for k, v in before["percent"].items()]
     if after:
         rows += [{"subtype": k, "release": "New release", "percent": v} for k, v in after["percent"].items()]
+    # a y title longer than the chart height leaves no room for the bars
     return (alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadius=3).encode(
-        x=alt.X("subtype:N", title=None), y=alt.Y("percent:Q", title="% of primary tumors with a subtype call"),
+        x=alt.X("subtype:N", title=None, axis=alt.Axis(labelAngle=0)), y=alt.Y("percent:Q", title="% of tumors"),
         xOffset="release:N", color=alt.Color("release:N", legend=alt.Legend(title=None, orient="bottom")),
-        tooltip=["subtype", "release", "percent"]).properties(height=240))
+        tooltip=["subtype", "release", "percent"]).properties(height=260))
 
 
 def render_analyses() -> None:
@@ -926,8 +939,10 @@ def render_analyses() -> None:
                 k3.metric("Release A", rob["release_a_difference"])
                 if rob["flagged_samples"]:
                     k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
+            how = rob.get("range_method") or {}
             st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
-                       "sampling variation only, not systematic errors such as a mislabelled ER test.")
+                       "sampling variation only, not systematic errors such as a mislabelled ER test."
+                       + (f" Method: {how['method']}; {how['resamples']:,} resamples, seed {how['seed']}." if how else ""))
     eb = ready.get("error_budget") or {}
     if eb:
         with block():
@@ -986,7 +1001,8 @@ def render_analyses() -> None:
                 c2.altair_chart(a1_chart(before, after))
             elif aid == "A2" and before.get("percent"):
                 st.altair_chart(a2_chart(before, after))
-                st.caption(f"A2: {GLOSSARY['A2']} PAM50: {GLOSSARY['PAM50']}")
+                st.caption("Each bar is a share of the primary tumors that have a subtype call. "
+                           f"A2: {GLOSSARY['A2']} PAM50: {GLOSSARY['PAM50']}")
             if findings:
                 a = next(x for x in findings["analyses"] if x["id"] == aid)
                 if a.get("samples_entered") or a.get("samples_left"):
@@ -1125,20 +1141,16 @@ def page_review() -> None:
         if st.button("Sign off", type="primary", disabled=not can_sign):
             signed_doc = signed(ready, findings, state["repairs"], state["issues"], reviewer, role, decision, note)
             reviewed = with_decisions(findings, state["repairs"], reviewer, role) if findings else None
-            state["signed"], state["signed_inputs"] = signed_doc, signature
             slug = re.sub(r"[^A-Za-z0-9]+", "-", release_label).strip("-").lower()
             out = REPO / "out" / "reviews" / f"{card['id']}-{slug}-{now().replace(':', '')}"
-            out.mkdir(parents=True, exist_ok=True)
-            (out / "readiness.signed.json").write_text(json.dumps(signed_doc, indent=2, default=str))
-            (out / "review_record.md").write_text(record_markdown(signed_doc, reviewed))
-            check = ""
-            if reviewed:
-                (out / "findings.reviewed.json").write_text(json.dumps(reviewed, indent=2))
-                v = subprocess.run([sys.executable, str(CHALLENGE / "format" / "validate.py"),
-                                    str(out / "findings.reviewed.json")], capture_output=True, text=True)
-                check = f"Organizers' validator on findings.reviewed.json: {(v.stdout or v.stderr).strip().split()[0]}"
-            state["flash"] = (f"Signed off by {reviewer} ({role}): {decision}. Saved in {out.relative_to(REPO)}", check)
-            st.rerun()                               # redraw so the header and the Overview show the sign-off
+            try:
+                check = save_review(out, signed_doc, reviewed, reviewed, CHALLENGE / "format" / "validate.py")
+            except Exception as e:
+                st.error(f"Not signed off: {e}")
+            else:
+                state["signed"], state["signed_inputs"] = signed_doc, signature
+                state["flash"] = (f"Signed off by {reviewer} ({role}): {decision}. Saved in {out.relative_to(REPO)}", check)
+                st.rerun()                           # redraw so the header and the Overview show the sign-off
     if state["signed"]:
         sd = state["signed"]
         msg, check = state.get("flash", ("Signed off.", ""))

@@ -21,13 +21,21 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 FIVE = ["clinical.tsv", "survival.tsv", "mutation_gene_level.tsv.gz", "copy_number_gistic.tsv.gz", "protein_rppa.tsv.gz"]
 
 
+def _link(src, dst) -> None:
+    """Link dst to src; copy where links aren't allowed (Windows without Developer Mode)."""
+    try:
+        os.symlink(os.path.realpath(src), dst)
+    except (OSError, NotImplementedError):
+        shutil.copy(src, dst)
+
+
 class _Links:
     """Stands in for shutil inside the generator: unchanged files are linked, not copied (fast, envelope-style)."""
     rmtree = staticmethod(shutil.rmtree)
 
     @staticmethod
     def copy(src, dst):
-        os.symlink(os.path.realpath(src), dst)
+        _link(src, dst)
 
 
 def _generator(challenge: pathlib.Path):
@@ -46,7 +54,9 @@ def plant(challenge: pathlib.Path, changes: list[dict], seed: int | None = None,
     five.mkdir(parents=True, exist_ok=True)
     for f in FIVE:
         if not (five / f).exists():
-            os.symlink((challenge / "data" / "tcga-brca" / "raw" / f).resolve(), five / f)
+            if (five / f).is_symlink():     # dangling link
+                (five / f).unlink()
+            _link((challenge / "data" / "tcga-brca" / "raw" / f).resolve(), five / f)
     mr = _generator(challenge)
     mr.RAW, mr.OUT, mr.shutil = five, out_dir, _Links
     tries = 5 if seed is None else 1                    # a random seed can be redrawn; a given one is kept
@@ -54,7 +64,7 @@ def plant(challenge: pathlib.Path, changes: list[dict], seed: int | None = None,
     for attempt in range(tries):
         name = f"planted-{seed}"
         cfg_path = out_dir / f"{name}.config.json"
-        cfg_path.write_text(json.dumps({"name": name, "seed": seed, "changes": changes}, indent=1))
+        cfg_path.write_text(json.dumps({"name": name, "seed": seed, "changes": changes}, indent=1), encoding="utf-8")
         argv = sys.argv
         try:
             sys.argv = ["make_release.py", "--config", str(cfg_path)]
@@ -77,7 +87,7 @@ def plant(challenge: pathlib.Path, changes: list[dict], seed: int | None = None,
     rel = out_dir / name
     key_path = out_dir / f"{name}.answer.json"
     (rel / "CHANGES.json").replace(key_path)            # keep the answer key out of the release the tool reads
-    return rel, json.loads(key_path.read_text())
+    return rel, json.loads(key_path.read_text(encoding="utf-8"))
 
 
 def expected(key: dict) -> set[tuple[str, str, str]]:

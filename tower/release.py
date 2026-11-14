@@ -55,7 +55,7 @@ class Table:
     frame: pd.DataFrame
     layout: str                     # "rows" or "columns"
     exact_text: bool
-    duplicated_ids: list[str] = field(default_factory=list)   # row files: ids on more than one row (one row kept)
+    duplicated_ids: list[str] = field(default_factory=list)   # ids on more than one row or column (the first is kept)
 
     def samples(self) -> list[str]:
         return list(self.frame.index) if self.layout == "rows" else list(self.frame.columns)
@@ -118,6 +118,59 @@ class Release:
         return self._tables[name]
 
 
+def _unique_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Suffix repeated row names (ERALPHA, ERALPHA#2) so each row has one name."""
+    if not df.index.has_duplicates:
+        return df
+    seen: dict[str, int] = {}
+    names = []
+    for x in df.index:
+        key = "" if pd.isna(x) else str(x)
+        seen[key] = seen.get(key, 0) + 1
+        names.append(x if seen[key] == 1 else f"{key}#{seen[key]}")
+    out = df.copy()
+    out.index = pd.Index(names, name=df.index.name)
+    return out
+
+
+def header_ids(path: pathlib.Path) -> list[str]:
+    """Sample ids in a matrix file's header line (pandas would rename a repeat to id.1)."""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "rt", encoding="utf-8", errors="replace") as fh:
+        return fh.readline().rstrip("\r\n").split("\t")[1:]
+
+
+def repeated(ids) -> list[str]:
+    seen, twice = set(), set()
+    for x in ids:
+        (twice if x in seen else seen).add(x)
+    return sorted(twice)
+
+
+def _one_column_per_id(df: pd.DataFrame, ids: list[str]) -> tuple[pd.DataFrame, list[str]]:
+    """Keep the first column per sample id; return the frame and the repeated ids."""
+    twice = repeated(ids)
+    if not twice or len(ids) != df.shape[1]:
+        return df, []
+    keep = [i for i, x in enumerate(ids) if x not in ids[:i]]
+    out = df.iloc[:, keep].copy()
+    out.columns = [ids[i] for i in keep]
+    return out, twice
+
+
+def sample_count(path: pathlib.Path, name: str) -> int | None:
+    """Samples in a file, from its header or line count."""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    try:
+        with opener(path, "rt", encoding="utf-8", errors="replace") as fh:
+            header = fh.readline().rstrip("\r\n").split("\t")
+            if name in ROW_FILES:
+                return sum(1 for line in fh if line.strip())
+            return len(set(header[1:]))
+    except Exception:
+        return None
+
+
 def _parse(path: pathlib.Path, name: str) -> Table:
     if name in ROW_FILES:
         df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
@@ -135,7 +188,8 @@ def _parse(path: pathlib.Path, name: str) -> Table:
         df = pd.read_csv(path, sep="\t", index_col=0, dtype=str, keep_default_na=False)
         if df.shape[1] == 0 or not any(str(c).startswith("TCGA-") for c in df.columns):
             raise ValueError("no TCGA sample columns found")
-        return Table(name, df, "columns", True)
+        df, twice = _one_column_per_id(df, header_ids(path))
+        return Table(name, _unique_rows(df), "columns", True, twice)
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt") as fh:
         header = fh.readline().rstrip("\r\n").split("\t")
@@ -144,7 +198,8 @@ def _parse(path: pathlib.Path, name: str) -> Table:
     df = pd.read_csv(path, sep="\t", index_col=0, dtype=dtypes, engine="c")
     if df.shape[1] == 0 or not any(str(c).startswith("TCGA-") for c in df.columns):
         raise ValueError("no TCGA sample columns found")
-    return Table(name, df, "columns", False)
+    df, twice = _one_column_per_id(df, header[1:])
+    return Table(name, _unique_rows(df), "columns", False, twice)
 
 
 def load_release(path: str | pathlib.Path, name: str | None = None) -> Release:

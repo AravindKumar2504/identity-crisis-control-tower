@@ -21,7 +21,10 @@ https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 - Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, and shown with the finding. Severity follows the kind of change first (a swap across ER groups or copied profiles is high) and that measured effect otherwise (high at half a percent or more); on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium. For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
 - The review screen works (`python -m streamlit run app.py --server.address localhost`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. It opens empty and shows results only after you choose a release and a question and click Show results. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
-- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. Next: Saturday's demo. The demo video is linked at the top. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
+- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. The demo video is linked at the top. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
+- Tests: 93 automated tests (`python -m unittest discover -s tests`). 75 run on small made-up releases with no download; the other 18 need release A and are skipped without it. See [Run the tests](#run-the-tests).
+- Saturday fixes: the subtype chart on Evidence > Analyses drew no bars; a repeated row name in a data file crashed the comparison; an ER group left with no values gave `nan` results; the sign-off and Fool the Tower could fail on Windows.
+- Saturday additions: a sample id repeated in a file is reported as its own finding and is never counted twice by A1 or A2; a sign-off counts only after the organizers' validator passes; `readiness.json` records how the 95% range is computed (percentile bootstrap, 1,000 resamples, seed 7); `report.md` and the What changed page count identical, changed, missing and new samples file by file.
 
 ## Quick start (fresh machine)
 
@@ -80,7 +83,7 @@ Add `--card all` to also judge every research-question card against the envelope
 python -m streamlit run app.py --server.address localhost
 ```
 
-Opens http://localhost:8501 (if that port is busy, Streamlit uses the next free one, such as 8502, and prints the address). The app opens empty, with a short guide and what each verdict means. In the sidebar, choose the new data (an opened envelope, a test release, or release A alone) and a research question, then click **Show results**. Changing either choice afterwards clears the results until you click **Show results** again, so the screen never shows results for a choice you've moved away from. **Start fresh** (sidebar) clears both choices, the results and the review decisions made in this browser session, and asks first if a reviewer has made decisions. Opening a sealed envelope in the sidebar selects it as the new data. For a demo, http://localhost:8501/?demo=1 opens the practice envelope and the ER-alpha question with its results straight away (open the practice envelope first: `python -m tower doctor` does this). The screen has five pages: **Overview** (the verdict and a one-line summary, the counts, the question board, what to do next and what the tool can't tell you), **What changed** (every finding with its samples, and a before-and-after table of the values behind each one), **Evidence** (every check with its rule and source, the analyses rerun, and the evidence trail), **Review and sign-off**, and **Fool the Tower**. In **Review and sign-off**, a reviewer enters a name and role, then approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
+Opens http://localhost:8501 (if that port is busy, Streamlit uses the next free one, such as 8502, and prints the address). The app opens empty, with a short guide and what each verdict means. In the sidebar, choose the new data (an opened envelope, a test release, or release A alone) and a research question, then click **Show results**. Changing either choice afterwards clears the results until you click **Show results** again, so the screen never shows results for a choice you've moved away from. **Start fresh** (sidebar) clears both choices, the results and the review decisions made in this browser session, and asks first if a reviewer has made decisions. Opening a sealed envelope in the sidebar selects it as the new data. For a demo, http://localhost:8501/?demo=1 opens the practice envelope and the ER-alpha question with its results straight away (open the practice envelope first: `python -m tower doctor` does this). The screen has five pages: **Overview** (the verdict and a one-line summary, the counts, the question board, what to do next and what the tool can't tell you), **What changed** (a file-by-file count of identical, changed, missing and new samples, every finding with its samples, and a before-and-after table of the values behind each one), **Evidence** (every check with its rule and source, the analyses rerun, and the evidence trail), **Review and sign-off**, and **Fool the Tower**. In **Review and sign-off**, a reviewer enters a name and role, then approves, rejects or asks for more evidence on every proposed fix and problem (a reason is required to reject or ask for more), then signs off. The sign-off decision starts from the verdict, approving a Blocked or Insufficient Evidence verdict needs a note, and changing any decision afterwards withdraws the sign-off.
 
 **Plain-language help:** a "What these terms mean" glossary on the Overview (under "More about this result") explains terms such as TCGA, release, fingerprint, OS, PFI, ER, HER2, IHC, FISH, RPPA, PAM50, A1 and A2, and hover help on the sidebar controls, the counts, the verdict badges, the question board and the section headers says what each one means.
 
@@ -88,7 +91,7 @@ Opens http://localhost:8501 (if that port is busy, Streamlit uses the next free 
 
 **Fool the Tower** (its own page): plant your own errors (swaps, copies, changed labels) and the organizers' `make_release.py` builds that release; the tool then looks for them without the answer key and is scored against it. Only `out/fool/` is written.
 
-**Ask your own question** (sidebar): build a question from a few choices (survival by subtype, a protein between groups, a prediction model, or response to a treatment). The same rules judge it, it joins the question board, and it can be saved as a card file that `python -m tower check --card <file>` runs too. The form only writes the question down; it never decides a verdict. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format, checked with the organizers' validator), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
+**Ask your own question** (sidebar): build a question from a few choices (survival by subtype, a protein between groups, a prediction model, or response to a treatment). The same rules judge it, it joins the question board, and it can be saved as a card file that `python -m tower check --card <file>` runs too. The form only writes the question down; it never decides a verdict. Sign-off writes `out/reviews/<question>-<release>-<time>/` with `findings.reviewed.json` (the decisions in the shared format; it must pass the organizers' validator before the sign-off counts), `readiness.signed.json` and a review record, and offers all three as downloads. A sealed envelope can also be opened from the sidebar.
 
 ### Is the data fit for a research question?
 
@@ -99,7 +102,7 @@ python -m tower cards
 python -m tower check --card os-luminal-a
 ```
 
-Each card states the intended use, the group studied, the outcome and the acceptable limitations. The tool returns Ready, Conditional, Blocked or Insufficient Evidence with the reasons, the next step, and the evidence trail (fields, every sample involved, file fingerprints), in `out/readiness/<card>.json` and `.md`. Add `--release <folder>` to judge a new release: it is compared with release A (or the folder given with `--against`), so the release changes that touch the question are included. Until every check is built, add `--allow-missing-checks` to list unbuilt checks as pending.
+Each card states the intended use, the group studied, the outcome and the acceptable limitations. The tool returns Ready, Conditional, Blocked or Insufficient Evidence with the reasons, the next step, and the evidence trail (fields, every sample involved, file fingerprints), in `out/readiness/<card>.json` and `.md`. Add `--release <folder>` to judge a new release: it is compared with release A (or the folder given with `--against`), so the release changes that touch the question are included. Every check the eight cards list is built; `--allow-missing-checks` lists a check that isn't built as pending instead of letting it decide the verdict.
 
 ### Compare any two releases
 
@@ -126,6 +129,14 @@ python scripts/scorecard.py ../oncosys-hackathon-challenge/data/tcga-brca/releas
 
 The answer keys (`CHANGES.json`) are written by the organizers' generator, not by us, and the tool never reads them.
 
+## Run the tests
+
+```bash
+python -m unittest discover -s tests
+```
+
+No extra install is needed (with pytest installed, `python -m pytest -q` works too). Without the challenge repo next to this one, 75 tests run on small made-up releases built by `tests/synth.py` and 18 are skipped. With release A fetched and the practice envelope opened (`python -m tower doctor` checks the first and does the second), all 93 run, including the release A numbers and a pass over every page of the review screen.
+
 ## What's in this repo
 
 | Path | What it is |
@@ -149,6 +160,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `app.py` | The review screen (Streamlit): Overview, What changed, Evidence, Review and sign-off, Fool the Tower |
 | `.streamlit/config.toml` | The screen's light theme, and serving it on this machine only |
 | `tests/releases/` | Configs for the scorecard's test releases |
+| `tests/` | Automated tests: the release comparison, the checks and verdict rule, the command line, and the review screen (`tests/synth.py` builds the made-up releases they use) |
 | `scripts/scorecard.py` | Scores the tool against the generator's answer keys |
 | `scripts/make_adversarial.py` | Builds the 7 test releases the organizers' generator can't make, each with its answer written first |
 | `scripts/try_check.py` | Runs one check for every card that lists it, on release A and the practice envelope, and flags contract problems |
