@@ -3,4 +3,5 @@ numpy
 jsonschema>=4.0
 pyyaml>=6.0
 streamlit>=1.40  # the review screen (app.py)
+altair>=6.3  # charts on the review screen (app.py)
 cryptography>=41  # only to open the sealed envelopes with the organizers' unseal.py
