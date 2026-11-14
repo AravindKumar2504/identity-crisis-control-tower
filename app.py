@@ -446,13 +446,17 @@ def page_overview() -> None:
   <div class="ct-sum">{esc(headline())}</div>
 </div>""", unsafe_allow_html=True)
     kpis = [
-        ("Changes found", f"{n_changes}" if findings else "n/a", "vs release A" if findings else "pick a new release",
+        ("Changes found", f"{n_changes}" if findings else "n/a",
+         "differences from release A, in any file" if findings else "pick a new release",
          "warn" if n_changes else "done"),
-        ("Touch this question", f"{len(touching)}", "need a person's review" if touching else "none",
+        ("Touch this question", f"{len(touching)}" if findings else "n/a",
+         "of those, in what this question reads" if touching
+         else "none of them reach this question" if findings else "pick a new release",
          "warn" if touching else "done"),
-        ("Decisions", f"{decided} of {total}", "fixes and problems decided", "done" if decided == total else "warn"),
-        ("Sign-off", "Signed" if signed_by else "Pending", f"by {signed_by}" if signed_by else "on the Review page",
-         "done" if signed_by else "todo"),
+        ("Decisions", f"{decided} of {total}", "proposed fixes and problems a reviewer has decided",
+         "done" if decided == total else "warn"),
+        ("Sign-off", "Signed" if signed_by else "Pending",
+         f"by {signed_by}" if signed_by else "a reviewer signs on the Review page", "done" if signed_by else "todo"),
     ]
     right.markdown('<div class="ct-kpis">' + "".join(
         f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
@@ -463,13 +467,14 @@ def page_overview() -> None:
 
     st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
                 unsafe_allow_html=True)
+    st.caption("Click a question to open it here. The highlighted one is shown above.")
     qcols = st.columns(4)
     for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
         with qcols[i % 4]:
             st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
                       type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"], width="stretch")
-            st.caption(q["verdict"] + (f" · {q['pending']} pending" if q.get("pending") else "")
-                       + (" · open" if q["id"] == card["id"] else ""))
+            st.caption(q["verdict"] + (f" · {plural(q['pending'], 'check')} not built" if q.get("pending") else "")
+                       + (" · shown above" if q["id"] == card["id"] else ""))
 
     nxt, cant = st.columns(2, gap="medium")
     with nxt:
@@ -480,6 +485,8 @@ def page_overview() -> None:
                 for i, s in enumerate(ready["next_steps"][:3], 1)) + "</div>", unsafe_allow_html=True)
         else:
             st.caption("Nothing to fix for this question.")
+        if any(s["for"][:1] == "F" and s["for"][1:].isdigit() for s in ready["next_steps"][:3]):
+            st.caption("F1, F2 and so on are the release changes, numbered as on the What changed page.")
         if len(ready["next_steps"]) > 3:
             st.caption(f"{len(ready['next_steps']) - 3} more, with the evidence that would change each, on the Evidence page.")
     with cant:
