@@ -73,7 +73,7 @@ def run(challenge_arg: str | None = None, full: bool = False) -> int:
     r = Report()
     print("Is this machine ready for the sealed envelope?\n\nSoftware")
     v = sys.version_info
-    r.line(v >= (3, 10), f"Python {v.major}.{v.minor}.{v.micro}", "Install Python 3.10 or newer.")
+    r.line(v >= (3, 11), f"Python {v.major}.{v.minor}.{v.micro}", "Install Python 3.11 or newer.")
     for mod, name in PACKAGES:
         try:
             m = importlib.import_module(mod)

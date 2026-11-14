@@ -194,7 +194,6 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 
 ## Problems already in release A (verified, for the readiness report)
 
-- One person under two IDs: TCGA-AN-A0FE and TCGA-AN-A0FG (TCGA redaction 2010, "Identical subject"); both still in `clinical.tsv`. The tool doesn't report it: neither sample is in any analysis, and the fact comes from outside annotations (RULES.md: don't link records to outside sources about individuals).
 - Two subtype columns (`PAM50Call_RNAseq`, `PAM50_mRNA_nature2012`) disagree on 52 of 508 tumors. The two ER columns agree on all 780 (do **not** report an ER conflict).
 - Survival: 6 rows marked Redacted (5 tumors still carry values), 13 tumors with zero follow-up, 135 patients with identical survival rows on more than one sample (128 tumor + normal, 4 tumor + normal + metastasis, 3 tumor + metastasis), OS events disagree with `OS_event_nature2012` for 28 of 816.
 - Requiring protein data shifts the hospital (tissue source site) mix: total variation distance 0.155 for the ER-alpha card's group (over its 0.15 limit, so `site_shift` warns) and 0.137 for the HER2 card's group (passes).

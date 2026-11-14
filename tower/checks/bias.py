@@ -42,13 +42,14 @@ def site_shift(release, card):
     moved = sorted(sites, key=lambda k: -abs(pg[k] / ng - pa[k] / na))[:3]
     top = {k: {"share_of_group_pct": round(100 * pg[k] / ng, 1), "share_of_all_primary_pct": round(100 * pa[k] / na, 1)}
            for k in moved}
-    numbers = {"total_variation_distance": round(shift, 3), "limit": limit, "group_samples": ng,
+    digits = 4 if round(shift, 3) == limit else 3      # 0.1503 shows as 0.1503, not "0.150, over the 0.15 limit"
+    numbers = {"total_variation_distance": round(shift, digits), "limit": limit, "group_samples": ng,
                "all_primary_tumors": na, "sites_in_group": len(pg), "sites_that_moved_most": top}
     fields = ["clinical.tsv:sampleID"]
     if shift > limit:
         k = moved[0]
         return [Issue(id="site_shift",
-                      title=(f"The group's hospital mix differs from all primary tumors by {shift:.3f}, over the card's "
+                      title=(f"The group's hospital mix differs from all primary tumors by {shift:.{digits}f}, over the card's "
                              f"{limit} limit (site {k} is {top[k]['share_of_group_pct']}% of the group but "
                              f"{top[k]['share_of_all_primary_pct']}% of all primary tumors)"),
                       status="warn", material=True, pre_existing=True, fields=fields, rows=group, numbers=numbers,
@@ -58,7 +59,7 @@ def site_shift(release, card):
                       evidence_needed="The result holds with each large hospital left out, or evidence that the "
                                       "hospitals' samples are comparable.")]
     return [Issue(id="site_shift",
-                  title=f"The group's hospital mix is close to that of all primary tumors (shift {shift:.3f}, within the "
+                  title=f"The group's hospital mix is close to that of all primary tumors (shift {shift:.{digits}f}, within the "
                         f"card's {limit} limit)",
                   status="pass", material=True, pre_existing=True, fields=fields, numbers=numbers, rule=rule,
                   source=SOURCE, limitation=LIMITATION)]

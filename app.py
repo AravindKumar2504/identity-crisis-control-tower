@@ -605,7 +605,8 @@ def headline() -> str:
     if ready["verdict"] == "Conditional":
         parts = ([plural(len(touching), "release change")] if touching else []) + \
                 ([plural(len(problems), "data problem")] if problems else [])
-        return f"Usable after a person reviews {' and '.join(parts) or 'the items below'} that touch this question."
+        verb = "touches" if len(touching) + len(problems) == 1 else "touch"
+        return f"Usable after a person reviews {' and '.join(parts) or 'the items below'} that {verb} this question."
     if ready["verdict"] == "Ready":
         pending = ready.get("pending_checks") or []
         return "Nothing material found in the checks that ran." + (
@@ -620,8 +621,8 @@ def budget_plain(eb: dict) -> str:
         if m:
             a, b = SUBTYPES.get(m[1], m[1]), SUBTYPES.get(m[2], m[2])
             return f"{a} {'tumor' if n == 1 else 'tumors'} relabelled as {b}"
-        one, many = {"swaps between ER groups": ("sample swapped between ER-positive and ER-negative tumors",
-                                                 "samples swapped between ER-positive and ER-negative tumors"),
+        one, many = {"swaps between ER groups": ("swap between ER-positive and ER-negative tumors",
+                                                 "swaps between ER-positive and ER-negative tumors"),
                      "wrong ER labels": ("wrong ER label", "wrong ER labels"),
                      "copied profiles": ("copied sample", "copied samples")}.get(error, (error, error))
         return one if n == 1 else many
@@ -637,6 +638,9 @@ def budget_plain(eb: dict) -> str:
         return (f"This release has none of these errors. The answer would still hold with up to {it['survives']} "
                 f"{name(it['error'], it['survives'])}.")
     it = max(spent, key=lambda x: x["this_release"] / x["survives"])
+    if eb.get("analysis") == "A2":               # A2's count covers every changed subtype label, not only the worst case
+        return (f"This release changed {plural(it['this_release'], 'PAM50 subtype label')}. The answer would still "
+                f"hold with up to {it['survives']} {name(it['error'], it['survives'])}.")
     return (f"This release has {it['this_release']} {name(it['error'], it['this_release'])}. "
             f"The answer would still hold with up to {it['survives']}.")
 
@@ -650,6 +654,7 @@ def board_help(q: dict) -> str:
 def page_overview() -> None:
     n_changes = len(findings["findings"]) if findings else 0
     signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
+    signed_as = state["signed"]["review"]["signed_off"]["decision"] if state["signed"] else None
     st.markdown('<div class="ct-intro">' + esc(INTRO) + '</div>', unsafe_allow_html=True)
     left, right = st.columns([3, 2], gap="medium")
     left.markdown(f"""
@@ -668,7 +673,7 @@ def page_overview() -> None:
         ("Decisions", f"{decided} of {total}",
          "flagged items a reviewer has approved, rejected or questioned", "done" if decided == total else "warn"),
         ("Sign-off", "Signed" if signed_by else "Pending",
-         f"approved by {signed_by}" if signed_by else "whether a named reviewer has approved this result",
+         f"by {signed_by}: {signed_as}" if signed_by else "whether a named reviewer has approved this result",
          "done" if signed_by else "todo"),
     ]
     right.markdown('<div class="ct-kpis">' + "".join(
@@ -966,7 +971,7 @@ def blast_radius() -> str:
         for f in findings["findings"]:
             sev = {"high": "#FDE7E7", "medium": "#FFF3DC"}.get(f["severity"], "#F1F4F6")
             n = sum(1 for e in f["evidence"] if e["kind"] == "sample")
-            g.append(f'{f["id"]} [label="{f["id"]} {KIND.get(f["kind"], f["kind"])}\\n{plural(n, 'sample')}", fillcolor="{sev}"];')
+            g.append(f'{f["id"]} [label="{f["id"]} {KIND.get(f["kind"], f["kind"])}\\n{plural(n, "sample")}", fillcolor="{sev}"];')
             file = next((e.get("file") for e in f["evidence"] if e.get("file")), None)
             if file:
                 files.add(file)
