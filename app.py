@@ -38,7 +38,7 @@ from tower.cli import plain_report  # noqa: E402
 from tower.review import (ISSUE_CHOICES, REPAIR_CHOICES, SIGNOFF_CHOICES, missing_decisions, now,  # noqa: E402
                           record_markdown, signed, with_decisions)
 
-st.set_page_config(page_title="Cohort Control Tower", page_icon="🗼", layout="wide")
+st.set_page_config(page_title="Cohort Control Tower", page_icon=":material/cell_tower:", layout="wide")
 
 # ------------------------------------------------------------------------------------------------ look
 VERDICT = {  # icon, colour, tint, chip class
@@ -52,31 +52,103 @@ STATUS = {"pass": ("passed", "chip-ready"), "warn": ("condition", "chip-cond"),
 SEVERITY = {"high": "chip-block", "medium": "chip-cond", "low": "chip-muted", "none": "chip-muted"}
 KIND = {"sample_swap": "Swapped samples", "duplicate": "Copied profiles", "membership_change": "Samples missing or new",
         "label_conflict": "Changed labels", "missing_data": "Values removed", "other": "Unexplained change",
-        "join_inflation": "Join inflation", "unlinked_record": "Unlinked record"}
+        "join_inflation": "Rows multiplied by a table join", "unlinked_record": "Record with no matching sample"}
+A1_DIFF = "ER-alpha protein: ER-positive minus ER-negative"
 ACTION = {"restore_from_previous_release": "Restore from release A", "exclude": "Exclude",
           "flag_for_review": "Flag for review", "relabel": "Relabel", "other": "Other"}
 A_ONLY = "Release A only (no new release)"
 # The sign-off decision starts from what the tool found; a person can change it, with a reason if they overrule it.
 DEFAULT_SIGNOFF = {"Ready": "Approve use as stated", "Conditional": "Approve with the conditions listed",
                    "Blocked": "Do not use", "Insufficient Evidence": "Request more evidence"}
+# Plain one-sentence meanings for the terms the screen uses (the Overview's glossary and the help tooltips).
+GLOSSARY = {
+    "TCGA": "The Cancer Genome Atlas, a public research project; this tool checks its breast cancer data.",
+    "Release": "One version of the data files. Release A is the reference, and each new release is compared "
+               "against it.",
+    "Fingerprint": "A short code computed from a sample's data. If the data changes, the code changes, so matching "
+                   "codes mean matching data.",
+    "Primary tumor": "The tumor where the cancer started (TCGA sample type 01), as opposed to a metastasis or normal "
+                     "tissue.",
+    "Redacted": "A survival record the data provider flagged in its Redaction column; the tool keeps it but asks a "
+                "person to review it before use.",
+    "OS": "Overall survival, the time from diagnosis to death from any cause or to the last follow-up.",
+    "PFI": "Progression-free interval, the time until the disease is recorded as progressing or returning, or to the "
+           "last follow-up.",
+    "ER": "Estrogen receptor, a lab result recording whether tumor cells carry this hormone receptor (positive or "
+          "negative).",
+    "ER-alpha": "The estrogen receptor measured as a protein level, a number rather than positive or negative.",
+    "HER2": "A protein on the cell surface, recorded as positive, negative or equivocal from lab tests.",
+    "IHC": "Immunohistochemistry, a tissue stain that shows how much of a protein is present. \"Equivocal\" means "
+           "unclear.",
+    "FISH": "A lab test that counts copies of a gene. Here it settles HER2 results the stain left unclear.",
+    "RPPA": "Reverse-phase protein array, the lab method behind the protein data file; it measures the level of many "
+            "proteins in each sample.",
+    "PAM50": "A method that sorts breast tumors into five subtypes using 50 genes.",
+    "Luminal A / Luminal B": "Two of the five PAM50 subtype labels. The others are HER2-enriched, Basal-like and "
+                             "Normal-like.",
+    "A1": "The protected analysis comparing average ER-alpha protein between ER-positive and ER-negative tumors.",
+    "A2": "The protected analysis counting the share of each PAM50 subtype.",
+}
+VERDICT_HELP = {
+    "Ready": "Ready: nothing found that stops this use; the checks that ran passed.",
+    "Conditional": "Conditional: usable only after a person reviews the problems or changes listed.",
+    "Blocked": "Blocked: the data can't support this use as the question states it.",
+    "Insufficient Evidence": "Insufficient Evidence: the tool can't tell yet, for example because a file or a check "
+                             "is missing.",
+}
+# What each built-in question asks, in plain words (hover help on the question board); custom questions use their title.
+QUESTION_PLAIN = {
+    "er-alpha-by-er": "is the average ER-alpha protein level different between ER-positive and ER-negative tumors?",
+    "os-luminal-a": "does overall survival differ between PAM50 subtypes, looking most closely at Luminal A tumors?",
+    "pfi-luminal-a": "does the progression-free interval differ between PAM50 subtypes, looking most closely at "
+                     "Luminal A tumors?",
+    "esr1-expression-vs-er": "how often does ESR1 gene activity (from RNA) agree with the clinical ER test?",
+    "her2-positive-protein": "is the HER2 protein level different between HER2-positive and HER2-negative tumors?",
+    "subtype-classifier-rna": "can a model learn to predict a tumor's PAM50 subtype from its RNA data?",
+    "hormone-therapy-response": "does the ER-alpha protein level go with how tumors responded to hormone therapy?",
+    "subtype-mix": "what share of primary tumors falls in each PAM50 subtype?",
+}
+KPI_HELP = {
+    "Changes found": "How many differences the tool found between this release and release A, in any file.",
+    "Touch this question": "How many of those changes reach the files, columns or samples this question reads.",
+    "Decisions": "How many proposed fixes and problems a reviewer has approved, rejected or asked more about, on the "
+                 "Review page.",
+    "Sign-off": "Whether a named reviewer has signed off this result, on the Review page.",
+}
+SECTION_HELP = {
+    "verdict": "The tool's answer: is this release fit for the question as it is stated?",
+    "board": "The same release judged for every question, to show that the answer depends on what you ask.",
+    "next": "The first fixes or checks to do before using the data for this question.",
+    "cant": "Limits of this result: things the checks that ran can't see.",
+    "more": "The full reasoning, the question's details, and what the terms on this screen mean.",
+    "budget": "How many worst-case data errors the answer survives before it changes.",
+}
+INTRO = ("How to read this page: we compare a new version of the TCGA breast cancer data with the original (release A), "
+         "sample by sample. For the research question you pick, the verdict says whether the new data can still answer "
+         "it: Ready (fine to use), Conditional (usable after a person checks the flagged items), Blocked (the data can't "
+         "support this question) or Insufficient Evidence (the tool can't tell). Below it: what changed, what to do "
+         "next, and what the tool can't tell you.")
+OUTCOME_HELP = (f"OS: {GLOSSARY['OS']} PFI: {GLOSSARY['PFI']} DSS: disease-specific survival, the time to death from "
+                "the cancer itself or to the last follow-up. DFI: disease-free interval, the time until the disease "
+                "returns after treatment left no sign of it, or to the last follow-up.")
 
 st.markdown("""
 <style>
 .block-container {padding-top: 3.2rem; padding-bottom: 3rem; max-width: 1320px;}
 .ct-head {display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; margin-bottom:.9rem;}
-.ct-title {font-size:1.75rem; font-weight:800; letter-spacing:-.02em; color:#132A3A;}
+.ct-title {font-size:1.6rem; font-weight:700; letter-spacing:-.01em; color:#132A3A;}
 .ct-sub {color:#556676; font-size:.95rem;}
-.ct-note {font-size:.75rem; color:#556676; background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px; padding:2px 10px;}
-.ct-hero {border:1px solid #E2E8EE; border-left:8px solid var(--c); border-radius:16px; padding:18px 22px;
-          background:linear-gradient(100deg, var(--bg) 0%, #FFFFFF 75%); height:100%;}
+.ct-note {font-size:.82rem; color:#556676;}
+.ct-hero {border:1px solid #E2E8EE; border-left:6px solid var(--c); border-radius:8px; padding:18px 22px;
+          background:var(--bg); height:100%;}
 .ct-eyebrow {font-size:.72rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#556676;}
-.ct-verdict {font-size:2.15rem; font-weight:800; color:var(--c); line-height:1.15; margin:.15rem 0 .35rem;}
-.ct-q {font-weight:700; font-size:1.06rem; color:#132A3A;}
+.ct-verdict {font-size:2rem; font-weight:700; color:var(--c); line-height:1.15; margin:.15rem 0 .35rem;}
+.ct-q {font-weight:600; font-size:1.05rem; color:#132A3A;}
 .ct-meta {color:#556676; font-size:.85rem; margin:.25rem 0 .65rem;}
 .ct-sum {color:#21384A; font-size:.95rem; line-height:1.55;}
-.ct-qcard {border:1px solid #E2E8EE; border-radius:16px; padding:14px 18px; background:#FBFCFD; font-size:.87rem; height:100%;}
+.ct-qcard {font-size:.95rem;}
 .ct-qcard .row {margin:0 0 7px; color:#33495A; line-height:1.45;}
-.ct-qcard .lab {font-size:.7rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#556676; display:block;}
+.ct-qcard .lab {font-size:.82rem; font-weight:600; color:#556676; display:block;}
 .chip {display:inline-block; padding:2px 10px; border-radius:999px; font-size:.76rem; font-weight:700; margin:0 6px 4px 0;
        border:1px solid transparent; white-space:nowrap;}
 .chip-ready {background:#E7F6EE; color:#0B6236; border-color:#B7E1C8;}
@@ -85,36 +157,37 @@ st.markdown("""
 .chip-unknown {background:#E7EDFB; color:#1A3580; border-color:#BAC9F1;}
 .chip-muted {background:#F1F4F6; color:#43535F; border-color:#E2E8EE;}
 .chip-teal {background:#E3F4F1; color:#0B5C55; border-color:#B4DFD8;}
-.ct-step {border:1px solid #E2E8EE; border-radius:14px; padding:10px 14px; background:#FFFFFF;}
-.ct-step .k {font-size:.68rem; color:#556676; text-transform:uppercase; letter-spacing:.07em; font-weight:800;}
-.ct-step .v {font-size:1.2rem; font-weight:800; color:#132A3A; margin-top:3px;}
-.ct-step .s {font-size:.76rem; color:#556676;}
-.ct-step.done {border-color:#B7E1C8; background:#F3FBF6;}
-.ct-step.warn {border-color:#F2CF96; background:#FFF9EE;}
-.ct-step.todo {border-color:#E2E8EE; background:#FFFFFF;}
+.ct-step {padding:2px 0;}
+.ct-step .k {font-size:.82rem; color:#556676; font-weight:600;}
+.ct-step .v {font-size:1.6rem; font-weight:600; color:#132A3A; line-height:1.25;}
+.ct-step .s {font-size:.82rem; color:#556676;}
 .ct-sec {font-size:.74rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:#556676; margin:20px 0 8px;}
 .ct-reason {border:1px solid #E2E8EE; border-radius:12px; padding:10px 14px; margin-bottom:8px; background:#FFFFFF;}
 .ct-next {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:12px 16px; margin:6px 0;}
 .ct-mono {font-family:'SF Mono', Menlo, Consolas, monospace; font-size:.8rem; color:#33495A;}
 .ct-small {font-size:.82rem; color:#556676;}
-.ct-cant {border:1px dashed #94A3B8; background:#F8FAFC; border-radius:12px; padding:10px 14px; margin-top:10px;
-          font-size:.86rem; color:#334155;}
+.ct-cant {border-left:2px solid #CBD5E1; padding:2px 0 2px 14px; margin-top:6px; font-size:.95rem; color:#33495A;}
 .ct-cant .it {margin:3px 0;}
-.ct-budget {margin-top:10px; padding:8px 12px; border-radius:10px; background:#ECFDF5; border:1px solid #A7F3D0;
-            font-size:.86rem; color:#065F46;}
-.ct-side {font-size:.7rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#9FB3C3; margin:16px 0 2px;}
-.ct-ctx {display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:-.35rem 0 1.1rem;}
-.ct-ctx span {background:#F3F6F8; border:1px solid #E2E8EE; border-radius:999px; padding:3px 12px; font-size:.8rem; color:#33495A;}
-.ct-ctx span.v {background:var(--bg); border-color:var(--c); color:var(--c); font-weight:800;}
-.ct-kpis {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; height:100%;}
+.ct-budget {margin-top:14px; border-left:2px solid #0F766E; padding:2px 0 2px 14px; font-size:.95rem; color:#21384A;}
+.ct-side {font-size:.82rem; font-weight:600; color:#9FB3C3; margin:16px 0 2px;}
+.ct-ctx {margin:-.35rem 0 1.1rem; font-size:.88rem; color:#33495A; line-height:1.9;}
+.ct-ctx .sep {color:#94A3B8; margin:0 .5rem;}
+.ct-kpis {display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px 28px; height:100%; align-content:center;}
 .ct-kpis .ct-step {display:flex; flex-direction:column; justify-content:center;}
 .ct-step .k {overflow-wrap:normal; word-break:normal;}
 @media (max-width: 1100px) {.ct-kpis {grid-template-columns:1fr;}}
-.ct-todo {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:10px 14px; margin-top:10px;
-          font-size:.88rem; color:#21384A;}
+.ct-todo {border-left:2px solid #0F766E; padding:2px 0 2px 14px; margin-top:6px; font-size:.95rem; color:#21384A;}
 .ct-todo .it {display:flex; gap:10px; align-items:flex-start; margin:5px 0; line-height:1.45;}
-.ct-todo .n {flex:none; width:20px; height:20px; border-radius:50%; background:#0F766E; color:#FFFFFF; display:inline-flex;
-             align-items:center; justify-content:center; font-weight:800; font-size:.72rem; margin-top:1px;}
+.ct-todo .n {flex:none; min-width:1.1em; color:#0F766E; font-weight:600;}
+/* Stage 2 of the UI pass: the Overview's sentence-case headers and square badges. Other pages keep the old look until
+   stage 3, which folds these into the base classes. */
+.ct-sec.flat {font-size:1.05rem; font-weight:600; text-transform:none; letter-spacing:0; color:#132A3A; margin:26px 0 8px;}
+.ct-eyebrow.flat {font-size:.82rem; font-weight:600; text-transform:none; letter-spacing:0;}
+.chip.flat {border-radius:4px; padding:1px 8px; font-weight:600;}
+/* A wider sidebar (still dark, from config.toml), so its labels and help fit on one or two lines. */
+section[data-testid="stSidebar"][aria-expanded="true"] {width:380px !important; min-width:380px !important;}
+[title] {cursor:help;}
+.ct-intro {font-size:.95rem; color:#21384A; line-height:1.55; margin:0 0 1rem; max-width:1100px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -127,8 +200,9 @@ def plural(k: int, word: str) -> str:
     return f"{k} {word}{'' if k == 1 else 's'}"
 
 
-def chip(text: str, cls: str) -> str:
-    return f'<span class="chip {cls}">{esc(text)}</span>'
+def chip(text: str, cls: str, title: str = "") -> str:
+    tip = f' title="{esc(title)}"' if title else ""
+    return f'<span class="chip {cls}"{tip}>{esc(text)}</span>'
 
 
 def challenge_repo() -> pathlib.Path | None:
@@ -266,6 +340,7 @@ FOOL_FILES = {"protein_rppa.tsv.gz": "protein (RPPA)", "copy_number_gistic.tsv.g
 FOOL_LABELS = {"ER status": ("breast_carcinoma_estrogen_receptor_status", ["Negative", "Positive"]),
                "PR status": ("breast_carcinoma_progesterone_receptor_status", ["Negative", "Positive"]),
                "PAM50 subtype": ("PAM50Call_RNAseq", ["LumB", "LumA", "Basal", "Her2"])}
+FOOL_FIELD_NAMES = {"ER status": "ER status (estrogen receptor)", "PR status": "PR status (progesterone receptor)"}
 
 
 def open_release(label: str) -> None:
@@ -287,21 +362,29 @@ def keep(dst: str, src: str) -> None:
 
 
 with st.sidebar:
-    st.markdown("### 🗼 Cohort Control Tower")
+    st.markdown("### Cohort Control Tower")
     st.caption("Team Identity_Crisis · OncoSys Cancer AI Lab")
-    st.markdown('<div class="ct-side">Release</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-side" title="Which data release the tool checks, and how to open a new one.">Release</div>',
+                unsafe_allow_html=True)
     opts = release_options()
     labels = list(opts)
     if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
         st.session_state["release_label"] = st.session_state.pop("pending_release")
     if st.session_state.get("release_label") not in labels:
         st.session_state["release_label"] = labels[1] if len(labels) > 1 else labels[0]
-    release_label = st.selectbox("New release to check against release A", labels, key="release_label")
+    release_label = st.selectbox("New release to check against release A", labels, key="release_label",
+                                 help="Pick which new data release to compare against release A. \"Release A only\" "
+                                      "checks the reference data on its own.")
     with st.expander("Open a sealed envelope"):
+        st.caption("Unseal a judge's envelope; its release is then added to the picker above.")
         with st.form("envelope"):
-            num = st.text_input("Envelope number", placeholder="07 or practice")
-            words = st.text_input("Four-word code", placeholder="amber falcon river quartz")
-            if st.form_submit_button("Open it"):
+            num = st.text_input("Envelope number", placeholder="07 or practice",
+                                help="The number the judge gives you, for example 07, or \"practice\" for the "
+                                     "practice envelope.")
+            words = st.text_input("Four-word code", placeholder="amber falcon river quartz",
+                                  help="The four words that unlock the envelope, separated by spaces.")
+            if st.form_submit_button("Open it", help="Unseal the envelope with the organizers' script and add its "
+                                                     "release to the release picker."):
                 r = subprocess.run([sys.executable, "envelopes/unseal.py", num.strip(), *words.split()],
                                    cwd=CHALLENGE, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                    env={**os.environ, "PYTHONIOENCODING": "utf-8"})   # Windows pipes use cp1252
@@ -311,43 +394,59 @@ with st.sidebar:
                     st.session_state["pending_release"] = f"Envelope {name}"
                     st.rerun()
 
-    st.markdown('<div class="ct-side">Research question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-side" title="Which research question the release is judged for.">Research question</div>',
+                unsafe_allow_html=True)
     cards = list_cards() + st.session_state.get("custom_cards", [])
     titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
         st.session_state["card_title"] = list(titles)[0]
-    card_title = st.selectbox("Question card", list(titles), key="card_title")
+    card_title = st.selectbox("Question card", list(titles), key="card_title",
+                              help="Pick the research question to judge against the chosen release.")
     card = next(c for c in cards if c["title"] == card_title)
     with st.expander("Ask your own question"):
+        st.caption("Build a question from a few choices; the same rules judge it as the built-in questions.")
         kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
-                                                 "Response to a treatment"], key="q_kind")
+                                                 "Response to a treatment"], key="q_kind",
+                            help="Pick the kind of question to build; the choices below change with it.")
         if kind == "Survival by subtype":
-            ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep")
+            ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep",
+                              help=OUTCOME_HELP)
             focus = st.selectbox("Subtype to focus on", ["", *SUBTYPES], key="q_focus",
-                                 format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"))
+                                 format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"),
+                                 help="Optionally pick one PAM50 subtype as the group the question looks at most "
+                                      "closely.")
             new = survival_question(ep, focus or None)
         elif kind == "A protein between groups":
-            prot = st.selectbox("Protein (RPPA)", protein_rows(), key="q_prot")
-            grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp")
+            prot = st.selectbox("Protein (from the protein data, RPPA)", protein_rows(), key="q_prot", help=f"RPPA: {GLOSSARY['RPPA']}")
+            grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp",
+                               help="Pick the lab result that splits tumors into the groups to compare.")
             new = protein_question(prot, grp)
         elif kind == "A prediction model":
-            lab = st.selectbox("Label to predict", list(LABELS), format_func=lambda k: LABELS[k], key="q_lab")
+            lab = st.selectbox("Label to predict", list(LABELS), format_func=lambda k: LABELS[k], key="q_lab",
+                               help="Pick what the model would try to predict for each tumor.")
             feats = st.multiselect("Data the model learns from", list(FEATURES), default=["protein_rppa.tsv.gz"],
-                                   format_func=lambda k: FEATURES[k], key="q_feats")
+                                   format_func=lambda k: FEATURES[k], key="q_feats",
+                                   help="Pick the data files the model would learn from.")
             new = model_question(lab, feats)
         else:
-            new = treatment_question(st.selectbox("Treatment", list(THERAPIES), key="q_ther"))
+            new = treatment_question(st.selectbox("Treatment", list(THERAPIES), key="q_ther",
+                                                  help="Pick the treatment whose response the question asks about."))
         st.caption(new["title"])
-        st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,))
+        st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,),
+                  help="Add this question to the question board and judge it on the chosen release.")
         st.caption("The same rules judge it as the cards in cards/. Nothing is saved unless you download it.")
         if card["id"].startswith("custom-"):
-            st.download_button("⬇ Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
-                               f"{card['id']}.yaml")
+            st.download_button("Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
+                               f"{card['id']}.yaml", icon=":material/download:",
+                               help="Download the open question as a card file; `python -m tower check --card <file>` "
+                                    "runs it too.")
     with st.expander("Settings"):
+        st.caption("How checks that aren't built yet are counted.")
         if "allow_missing" not in st.session_state:     # the default lives here, so the toggle keeps its state by key
             st.session_state["allow_missing"] = True
         allow_missing = st.toggle("List unbuilt checks as pending", key="allow_missing",
-                                  help="Off: an unbuilt check counts as 'can't tell', the strict reading.")
+                                  help="On: a check that isn't built yet is listed as pending and doesn't decide the "
+                                       "verdict. Off: it counts as 'can't tell', the strict reading.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
 reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
 role = st.session_state.get("reviewer_role", "")
@@ -413,9 +512,9 @@ where = "release A on its own" if b_path is None else f"{release_label}, compare
 st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
             '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
             '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
-st.markdown(f'<div class="ct-ctx"><span><b>Release</b> &nbsp;{esc(where)}</span>'
-            f'<span><b>Question</b> &nbsp;{esc(card.get("short_title") or card["title"])}</span>'
-            f'<span class="v" style="--c:{colour}; --bg:{tint}">{icon} {esc(ready["verdict"])}</span></div>',
+st.markdown(f'<div class="ct-ctx"><b>Release:</b> {esc(where)}<span class="sep">·</span>'
+            f'<b>Question:</b> {esc(card.get("short_title") or card["title"])}<span class="sep">·</span>'
+            f'<b>Verdict:</b> {chip(ready["verdict"], vchip + " flat", VERDICT_HELP[ready["verdict"]])}</div>',
             unsafe_allow_html=True)
 
 
@@ -435,52 +534,89 @@ def headline() -> str:
     return ready["reasons"][0] if ready["reasons"] else ""
 
 
+def budget_plain(eb: dict) -> str:
+    """The error budget in plain words, from the same numbers as tower/budget.py's headline."""
+    def name(error: str, n: int) -> str:
+        m = re.fullmatch(r"(\w+) tumors relabelled (\w+)", error)
+        if m:
+            a, b = SUBTYPES.get(m[1], m[1]), SUBTYPES.get(m[2], m[2])
+            return f"{a} {'tumor' if n == 1 else 'tumors'} relabelled as {b}"
+        one, many = {"swaps between ER groups": ("sample swapped between ER-positive and ER-negative tumors",
+                                                 "samples swapped between ER-positive and ER-negative tumors"),
+                     "wrong ER labels": ("wrong ER label", "wrong ER labels"),
+                     "copied profiles": ("copied sample", "copied samples")}.get(error, (error, error))
+        return one if n == 1 else many
+
+    items = eb["items"]
+    if all(it["this_release"] is None for it in items):          # release A on its own: no release to count
+        holds = [f"{it['survives']} {name(it['error'], it['survives'])}" for it in items]
+        joined = holds[0] if len(holds) == 1 else ", ".join(holds[:-1]) + " or " + holds[-1]
+        return f"The answer would still hold with up to {joined}."
+    spent = [it for it in items if it["this_release"] and it["survives"]]
+    if not spent:
+        it = items[0]
+        return (f"This release has none of these errors. The answer would still hold with up to {it['survives']} "
+                f"{name(it['error'], it['survives'])}.")
+    it = max(spent, key=lambda x: x["this_release"] / x["survives"])
+    return (f"This release has {it['this_release']} {name(it['error'], it['this_release'])}. "
+            f"The answer would still hold with up to {it['survives']}.")
+
+
+def board_help(q: dict) -> str:
+    """Hover help for a question-board button: what the question asks, then why it got its verdict."""
+    asks = QUESTION_PLAIN.get(q["id"]) or q["title"]
+    return f"**{q['short']}:** {asks}\n\n{VERDICT_HELP.get(q['verdict'], q['verdict'])}\n\nWhy: {q['reason']}"
+
+
 def page_overview() -> None:
     n_changes = len(findings["findings"]) if findings else 0
     signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
+    st.markdown('<div class="ct-intro">' + esc(INTRO) + '</div>', unsafe_allow_html=True)
     left, right = st.columns([3, 2], gap="medium")
     left.markdown(f"""
 <div class="ct-hero" style="--c:{colour}; --bg:{tint}">
-  <div class="ct-eyebrow">Verdict for this question</div>
-  <div class="ct-verdict">{icon} {esc(ready['verdict'])}</div>
+  <div class="ct-eyebrow flat" title="{esc(SECTION_HELP["verdict"])}">Verdict for this question</div>
+  <div class="ct-verdict" title="{esc(VERDICT_HELP[ready['verdict']])}">{esc(ready['verdict'])}</div>
   <div class="ct-q">{esc(card['title'])}</div>
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
   <div class="ct-sum">{esc(headline())}</div>
 </div>""", unsafe_allow_html=True)
-    kpis = [
+    kpis = [   # label, value, what it means in one plain line, state
         ("Changes found", f"{n_changes}" if findings else "n/a",
-         "differences from release A, in any file" if findings else "pick a new release",
-         "warn" if n_changes else "done"),
+         "things that differ between the new data and release A", "warn" if n_changes else "done"),
         ("Touch this question", f"{len(touching)}" if findings else "n/a",
-         "of those, in what this question reads" if touching
-         else "none of them reach this question" if findings else "pick a new release",
-         "warn" if touching else "done"),
-        ("Decisions", f"{decided} of {total}", "proposed fixes and problems a reviewer has decided",
-         "done" if decided == total else "warn"),
+         "of those, changes in data this question uses", "warn" if touching else "done"),
+        ("Decisions", f"{decided} of {total}",
+         "flagged items a reviewer has approved, rejected or questioned", "done" if decided == total else "warn"),
         ("Sign-off", "Signed" if signed_by else "Pending",
-         f"by {signed_by}" if signed_by else "a reviewer signs on the Review page", "done" if signed_by else "todo"),
+         f"approved by {signed_by}" if signed_by else "whether a named reviewer has approved this result",
+         "done" if signed_by else "todo"),
     ]
     right.markdown('<div class="ct-kpis">' + "".join(
-        f'<div class="ct-step {s}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
+        f'<div class="ct-step {s}" title="{esc(KPI_HELP[k])}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
         for k, v, sub, s in kpis) + "</div>", unsafe_allow_html=True)
     if ready.get("error_budget"):
-        st.markdown(f'<div class="ct-budget"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
+        st.markdown(f'<div class="ct-budget" title="{esc(SECTION_HELP["budget"])}"><b>Error budget.</b> {esc(budget_plain(ready["error_budget"]))}</div>',
                     unsafe_allow_html=True)
 
-    st.markdown('<div class="ct-sec">Same release, every question: the verdict depends on the question</div>',
+    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["board"])}">Same release, every question: the verdict depends '
+                'on the question</div>',
                 unsafe_allow_html=True)
     st.caption("Click a question to open it here. The highlighted one is shown above.")
     qcols = st.columns(4)
     for i, q in enumerate(board(b_path, allow_missing, inputs_sig(), json.dumps(st.session_state.get("custom_cards", [])))):
         with qcols[i % 4]:
-            st.button(f"{VERDICT[q['verdict']][0]} {q['short']}", key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
-                      type="primary" if q["id"] == card["id"] else "secondary", help=q["reason"], width="stretch")
-            st.caption(q["verdict"] + (f" · {plural(q['pending'], 'check')} not built" if q.get("pending") else "")
-                       + (" · shown above" if q["id"] == card["id"] else ""))
+            st.button(q["short"], key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
+                      type="primary" if q["id"] == card["id"] else "secondary", help=board_help(q), width="stretch")
+            extra = ([f"{plural(q['pending'], 'check')} not built"] if q.get("pending") else []) + \
+                    (["shown above"] if q["id"] == card["id"] else [])
+            st.markdown(chip(q["verdict"], VERDICT[q["verdict"]][3] + " flat", VERDICT_HELP[q["verdict"]])
+                        + (f'<span class="ct-small">{esc(" · ".join(extra))}</span>' if extra else ""),
+                        unsafe_allow_html=True)
 
     nxt, cant = st.columns(2, gap="medium")
     with nxt:
-        st.markdown('<div class="ct-sec">What to do next</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["next"])}">What to do next</div>', unsafe_allow_html=True)
         if ready["next_steps"]:
             st.markdown('<div class="ct-todo">' + "".join(
                 f'<div class="it"><span class="n">{i}</span><span>{esc(s["step"])}</span></div>'
@@ -492,11 +628,12 @@ def page_overview() -> None:
         if len(ready["next_steps"]) > 3:
             st.caption(f"{len(ready['next_steps']) - 3} more, with the evidence that would change each, on the Evidence page.")
     with cant:
-        st.markdown('<div class="ct-sec">What this can\'t tell you</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["cant"])}">What this can\'t tell you</div>',
+                    unsafe_allow_html=True)
         st.markdown('<div class="ct-cant">' + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"])
                     + "</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="ct-sec">More about this result</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["more"])}">More about this result</div>', unsafe_allow_html=True)
     with st.expander("The full reasoning"):
         st.markdown(ready["summary"])
         for r in ready["reasons"]:
@@ -505,15 +642,18 @@ def page_overview() -> None:
         st.markdown(f"""
 <div class="ct-qcard">
   <div class="row"><span class="lab">Intended use</span>{esc(card['intended_use'])}</div>
-  <div class="row"><span class="lab">Group studied</span>{esc(card['group_studied'])}</div>
+  <div class="row"><span class="lab" title="Primary tumor: {esc(GLOSSARY['Primary tumor'])}">Group studied</span>{esc(card['group_studied'])}</div>
   <div class="row"><span class="lab">Outcome</span>{esc(card['outcome'])}</div>
   <div class="row"><span class="lab">Acceptable limitations</span>{esc(card['acceptable_limitations'])}</div>
 </div>""", unsafe_allow_html=True)
         if ready.get("group_samples"):
-            st.download_button(f"⬇ The {len(ready['group_samples'])} samples this question can use (CSV)",
+            st.download_button(f"The {len(ready['group_samples'])} samples this question can use (CSV)",
                                "sample_id,patient_id\n" + "".join(f"{s},{s[:12]}\n" for s in ready["group_samples"]),
                                f"{card['id']}-samples.csv", help="The samples in this release that can answer the "
-                               "question, after the question's own filters: which samples the verdict is about.")
+                               "question, after the question's own filters: which samples the verdict is about.",
+                               icon=":material/download:")
+    with st.expander("What these terms mean"):
+        st.markdown("\n".join(f"- **{term}:** {meaning}" for term, meaning in GLOSSARY.items()))
 
 
 # ------------------------------------------------------------------------------------------------ why
@@ -534,8 +674,8 @@ def render_checks() -> None:
                           else "can't tell" if x["status"] == "unknown" else "not material here"), "chip-muted"
         with st.container(border=True):
             st.markdown(chip(label, cls) + (chip("already in release A", "chip-muted") if x["pre_existing"] and x["material"] else "")
-                        + f'<b>{esc(x["id"])}</b>', unsafe_allow_html=True)
-            st.markdown(x["title"])
+                        + f'<b>{esc(x["title"])}</b> &nbsp;<span class="ct-mono">{esc(x["id"])}</span>',
+                        unsafe_allow_html=True)
             if x["material"] and x["status"] != "pass":
                 with st.expander("Rule, source and evidence"):
                     st.markdown(f"**Decision rule:** {x['rule']}")
@@ -631,7 +771,7 @@ def a1_chart(before: dict, after: dict | None):
         rows += [{"ER status": "ER-positive", "release": "New release", "mean": after["mean_positive"]},
                  {"ER status": "ER-negative", "release": "New release", "mean": after["mean_negative"]}]
     return (alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadius=3).encode(
-        x=alt.X("release:N", title=None, sort=["Release A", "New release"]), y=alt.Y("mean:Q", title="mean ER-alpha protein (RPPA)"),
+        x=alt.X("release:N", title=None, sort=["Release A", "New release"]), y=alt.Y("mean:Q", title="Average ER-alpha protein level (RPPA)"),
         color=alt.Color("release:N", legend=None), column=alt.Column("ER status:N", title=None),
         tooltip=["ER status", "release", "mean"]).properties(width=140, height=220))
 
@@ -641,7 +781,7 @@ def a2_chart(before: dict, after: dict | None):
     if after:
         rows += [{"subtype": k, "release": "New release", "percent": v} for k, v in after["percent"].items()]
     return (alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadius=3).encode(
-        x=alt.X("subtype:N", title=None), y=alt.Y("percent:Q", title="% of subtyped primary tumors"),
+        x=alt.X("subtype:N", title=None), y=alt.Y("percent:Q", title="% of primary tumors with a subtype call"),
         xOffset="release:N", color=alt.Color("release:N", legend=alt.Legend(title=None, orient="bottom")),
         tooltip=["subtype", "release", "percent"]).properties(height=240))
 
@@ -662,7 +802,7 @@ def render_analyses() -> None:
             st.markdown('<div class="ct-eyebrow">Does the conclusion still hold?</div>' + chip(lab, cls)
                         + f'<span class="ct-small">{esc(rob["claim"])}</span>', unsafe_allow_html=True)
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("ER+ minus ER- difference", rob["difference"],
+            k1.metric(A1_DIFF, rob["difference"], help=f"A1: {GLOSSARY['A1']} ER-alpha: {GLOSSARY['ER-alpha']}",
                       delta=round(rob["difference"] - rob["release_a_difference"], 3) if rob.get("release_a_difference") is not None else None)
             k2.metric("95% range (1,000 resamples)", f"{rob['range_95'][0]} to {rob['range_95'][1]}")
             if rob.get("release_a_difference") is not None:
@@ -681,7 +821,7 @@ def render_analyses() -> None:
                 col.metric(f"Worst-case {it['error']} it survives", it["survives"],
                            delta=None if it["this_release"] is None else f"this release: {it['this_release']}",
                            delta_color="off")
-            st.markdown(f"**{eb['headline']}**")
+            st.markdown(f"**{budget_plain(eb)}**")
             st.caption(eb["method"])
     if items:
         ref = reference_numbers(b_path or str(RAW))
@@ -695,7 +835,7 @@ def render_analyses() -> None:
                 for aid, _title, _status, _reason, before, after in items:
                     ours, theirs = (after or before or {}), ref.get(aid, {})
                     if aid == "A1":
-                        pairs = [("ER+ minus ER- difference", ours.get("difference"), theirs.get("difference")),
+                        pairs = [(A1_DIFF, ours.get("difference"), theirs.get("difference")),
                                  ("Samples", ours.get("n_samples"), theirs.get("n_samples"))]
                     else:
                         pairs = [("Samples", ours.get("n_samples"), theirs.get("n_samples")),
@@ -721,13 +861,15 @@ def render_analyses() -> None:
             st.caption(reason)
             if aid == "A1" and before.get("mean_positive") is not None:
                 c1, c2 = st.columns([1, 2])
-                c1.metric("ER+ minus ER- difference", after["difference"] if after else before["difference"],
+                c1.metric(A1_DIFF, after["difference"] if after else before["difference"],
+                          help=f"A1: {GLOSSARY['A1']} ER-alpha: {GLOSSARY['ER-alpha']}",
                           delta=round(after["difference"] - before["difference"], 3) if after else None)
                 c1.metric("Samples", after["n_samples"] if after else before["n_samples"],
                           delta=(after["n_samples"] - before["n_samples"]) if after else None)
                 c2.altair_chart(a1_chart(before, after))
             elif aid == "A2" and before.get("percent"):
                 st.altair_chart(a2_chart(before, after))
+                st.caption(f"A2: {GLOSSARY['A2']} PAM50: {GLOSSARY['PAM50']}")
             if findings:
                 a = next(x for x in findings["analyses"] if x["id"] == aid)
                 if a.get("samples_entered") or a.get("samples_left"):
@@ -782,13 +924,15 @@ def blast_radius() -> str:
 
 
 def render_trail() -> None:
-    st.markdown('<div class="ct-sec">Blast radius: change → file → analysis → this question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-sec">How each change reaches this question (change → file → analysis → question)</div>', unsafe_allow_html=True)
     st.graphviz_chart(blast_radius())
     st.markdown('<div class="ct-sec">Every conclusion and what it rests on</div>', unsafe_allow_html=True)
     st.dataframe(pd.DataFrame([{"Conclusion": e["conclusion"], "Status": e["status"], "Rule": e["rule"],
                                 "Source": e["source"], "Fields": ", ".join(e["fields"]), "Samples": e["row_count"],
                                 "File fingerprints": "; ".join(f"{k}: {(v or '')[:12]}" for k, v in e["files"].items())}
-                               for e in ready["lineage"]]), hide_index=True, width="stretch")
+                               for e in ready["lineage"]]), hide_index=True, width="stretch",
+                 column_config={"File fingerprints": st.column_config.TextColumn(
+                     "File fingerprints", help=f"Fingerprint: {GLOSSARY['Fingerprint']}")})
     st.caption("Fields this question reads: " + ", ".join(ready["fields_read"]))
 
 # ------------------------------------------------------------------------------------------------ review
@@ -905,17 +1049,20 @@ def page_fool() -> None:
         st.markdown("**Swap samples' data**")
         n_swap = st.number_input("Pairs to swap", 0, 5, 1, key="fool_swaps")
         swap_file = st.selectbox("In", list(FOOL_FILES), format_func=FOOL_FILES.get, key="fool_swap_file")
-        opposite = st.checkbox("Across ER groups (the worst kind for A1)", True, key="fool_opposite")
+        opposite = st.checkbox("Across ER-positive and ER-negative tumors (the hardest case for analysis A1)", True, key="fool_opposite")
     with f2:
         st.markdown("**Copy profiles over samples**")
         n_copy = st.number_input("Copies", 0, 10, 2, key="fool_copies")
         copy_file = st.selectbox("In ", list(FOOL_FILES), format_func=FOOL_FILES.get, key="fool_copy_file")
-        subtype = st.selectbox("Replacing tumors of subtype", ["Her2", "Basal", "LumA", "LumB"], key="fool_subtype")
+        subtype = st.selectbox("Replacing tumors of subtype", ["Her2", "Basal", "LumA", "LumB"], key="fool_subtype",
+                               format_func=lambda k: f"{SUBTYPES.get(k, k)} ({k})")
     with f3:
         st.markdown("**Change clinical labels**")
         n_rel = st.number_input("Labels to change", 0, 10, 3, key="fool_relabels")
-        field = st.selectbox("Field", list(FOOL_LABELS), key="fool_field")
-        new_value = st.selectbox("Set to", FOOL_LABELS[field][1], key="fool_value")
+        field = st.selectbox("Field", list(FOOL_LABELS), key="fool_field",
+                             format_func=lambda k: FOOL_FIELD_NAMES.get(k, k))
+        new_value = st.selectbox("Set to", FOOL_LABELS[field][1], key="fool_value",
+                                 format_func=lambda v: f"{SUBTYPES[v]} ({v})" if v in SUBTYPES else v)
     if st.button("Plant these errors and let the tool look", type="primary", key="fool_go"):
         planted = []
         if n_swap:

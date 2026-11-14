@@ -13,7 +13,7 @@ from collections import Counter
 from ..cards import BLANKS, card_group
 from . import Issue, register
 from .fitness import DERIVED_FROM, PAM50_SRC, SUBTYPE_NAMES
-from .labels import NAT, RNA, TCGA_2012
+from .labels import NAT, RNA, TCGA_2012, named, plain_name
 
 CL = "clinical.tsv"
 # The 9 subtype-derived clinical columns a model must not use as inputs (docs/PLAN.md, leakage_columns).
@@ -57,7 +57,7 @@ def leakage_columns(release, card):
                   source=f"{TCGA_2012} (where these columns come from); {PAM50_SRC}",
                   rule=f"Block if any of the {n} clinical columns computed from the subtype, or from the data that "
                        "defines it, is a model input: the model would score well by reading the answer.",
-                  limitation=f"It checks only these {n} named columns; another field that encodes the subtype would "
+                  limitation=f"It checks only these {n} named columns. Another field that encodes the subtype would "
                              "not be caught. It judges the card's design, not the data.")
     if not leaking:
         return [Issue(title=f"None of the {n} subtype-derived clinical columns is a model input", status="pass",
@@ -66,7 +66,8 @@ def leakage_columns(release, card):
     return [Issue(title=f"{len(leaking)} of the model's inputs {'is a column' if len(leaking) == 1 else 'are columns'} "
                         f"computed from the subtype it predicts{how}",
                   status="block", material=True, fields=[f"{CL}:{c}" for c in leaking],
-                  next_step=f"Drop {', '.join(leaking)} from the model's features.",
+                  next_step=f"Remove these subtype-based columns from the data the model learns from: "
+                            f"{', '.join(leaking)}.",
                   evidence_needed="A features list with none of these columns.",
                   **common)]
 
@@ -85,14 +86,15 @@ def a2_robustness(release, card):
     if not release.has(CL):
         state = "unreadable" if CL in release.unreadable else "missing"
         return unknown(f"The clinical file is {state}, so A2's robustness can't be checked",
-                       next_step="Get a release with a readable clinical.tsv.",
+                       next_step="Get a release with a readable clinical file (clinical.tsv).",
                        evidence="A release containing clinical.tsv, matching its published fingerprint.")
     cl = release.table(CL).frame
     missing = [c for c in (RNA, NAT) if c not in cl.columns]
     if missing:
         what = ", ".join(f"{CL}:{c}" for c in missing)
-        return unknown(f"The clinical file has no {what} column, so A2's robustness can't be checked",
-                       numbers={"missing_fields": missing}, next_step=f"Get a release whose clinical.tsv includes {what}.",
+        return unknown(f"The clinical file has no column for {' or '.join(plain_name(c) for c in missing)}, so A2's "
+                       "robustness can't be checked", numbers={"missing_fields": missing},
+                       next_step=f"Get a release whose clinical file includes {' and '.join(named(c) for c in missing)}.",
                        evidence=f"A release with {what}.")
     group = sorted(card_group(release, card))
     both = [s for s in group if not _blank(cl.at[s, RNA]) and not _blank(cl.at[s, NAT])]
@@ -140,15 +142,15 @@ def a2_robustness(release, card):
                   source=TCGA_2012 + f" (the source of {NAT})",
                   rule=f"Warn if any subtype's share differs by {SHARE_GAP_POINTS:g} points or more between {RNA} and "
                        f"{NAT}, among tumors with both calls. Shares are compared before rounding.",
-                  limitation=f"Only tumors with both calls can be compared ({n} of {len(group)} here), and neither "
-                             "column is a ground truth. The rows are the tumors whose two calls disagree, which cause "
-                             "the gap.")
+                  limitation=f"Only tumors with both calls can be compared ({n} of {len(group)} here). Neither call "
+                             "is a ground truth. The rows are the tumors whose two calls disagree, which cause the gap.")
     if not over:
         return [Issue(title=f"A2's subtype shares agree within {SHARE_GAP_POINTS:g} points under both subtype columns "
                             f"(largest gap: {top}, {abs(t['difference_points']):.1f} points)",
                       status="pass", material=True, **common)]
     return [Issue(title=head, status="warn", material=True,
-                  next_step=f"Report the subtype mix under both {RNA} and {NAT}, or say which column is used and why.",
+                  next_step=f"Report the subtype mix under both {named(RNA)} and {named(NAT)}, or say which one is "
+                            "used and why.",
                   evidence_needed=f"A documented reason to prefer one subtype column, or shares that agree within "
                                   f"{SHARE_GAP_POINTS:g} points.",
                   **common)]
