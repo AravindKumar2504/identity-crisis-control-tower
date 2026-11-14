@@ -4,6 +4,8 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 
 **Demo video (3:20):** [docs/demo.mp4](docs/demo.mp4), on the practice envelope. The narration is a synthetic voice (Kokoro, run locally).
 
+https://github.com/user-attachments/assets/86a4a75c-b7d4-48b7-be3a-5032367b80a6
+
 ## The user and the one workflow
 
 **User:** a research data engineer who keeps an analysis-ready copy of TCGA breast cancer data for the scientists who use it, and receives new releases of it. Who they are and what goes wrong for them, with sources: [docs/USER.md](docs/USER.md).
