@@ -1,16 +1,17 @@
 # The 3-minute demo and the sealed envelope
 
-Draft v3, Fri 11/13 (the five-page screen). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
+Draft v4, Fri 11/13 evening (every check built; Aravind presents). Every line below uses the screen's own wording, and every number comes from the practice envelope. Read it aloud with a stopwatch before Saturday, and re-check the lines listed under "Check at Friday's 9 PM dry run".
 
 **What the judges want (the organizers, Friday 8:55 AM):** every working tool finds the same changes, so show why they matter, what the user should do next, and what the tool can't tell them. The slides add: name your user, show one result a judge can verify and one limitation they can inspect. This script covers each: the user in the hook; the measured effects and the HER2 loss (why it matters); the next steps (what to do); the "What this can't tell you" box (the limitation); and the Analyses view on the Evidence page, where the organizers' own script gives the same number (the result a judge can verify).
 
-**Roles (suggested):** Madhu speaks and Aravind drives the laptop. Aakruti and Chirag answer questions on their own parts.
+**Roles:** Aravind speaks and drives the laptop. A teammate who is there can drive instead, and Aakruti can take questions on the release A checks.
 
 **Before you start:**
-- The screen is open (`streamlit run app.py`) with "Envelope practice" picked and the ER-alpha question showing.
+- The screen is open (`python -m streamlit run app.py --server.address localhost`) with "Envelope practice" picked and the ER-alpha question showing.
 - A terminal is open in `identity-crisis-control-tower` with the venv on, and `python -m tower doctor` ends with "Ready for the sealed envelope."
-- The browser is zoomed so all 8 question buttons on the Overview are visible.
+- The browser is zoomed so all 8 question buttons on the Overview are visible and the top menu shows all five pages (a narrow window folds them into "N more").
 - On **Review and sign-off**, a reviewer name and role are filled in. They stay while you move between pages; a browser refresh clears them.
+- Old Fool the Tower runs are cleared: delete the `out/fool/` folder (git ignores it), so the release list shows only the envelopes and test releases.
 
 ## The script (about 400 words, roughly 159 seconds of speaking plus clicks; the optional hormone therapy click adds about 7 seconds)
 
@@ -58,7 +59,7 @@ Draft v3, Fri 11/13 (the five-page screen). Every line below uses the screen's o
 
 ### 2:50 Close (10 s)
 
-> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about two seconds each. Hand us the envelope, plant your own errors, or ask your own research question.
+> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about a second each. Hand us the envelope, plant your own errors, or ask your own research question.
 
 **If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
@@ -70,7 +71,7 @@ Draft v3, Fri 11/13 (the five-page screen). Every line below uses the screen's o
    python -m tower envelope <number> <word1> <word2> <word3> <word4>
    ```
 
-2. Madhu reads three things aloud:
+2. Read three things aloud:
    - the verdict line
    - each finding: its kind, how severe, how many samples, and which analysis it touches
    - the `valid` line (the organizers' validator passed) and the total time
@@ -82,7 +83,7 @@ Draft v3, Fri 11/13 (the five-page screen). Every line below uses the screen's o
    ```
 
    ```bash
-   cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/E<two digits>/release --challenge ../oncosys-hackathon-challenge
+   cd ../identity-crisis-control-tower && python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw ../oncosys-hackathon-challenge/envelopes/opened/E<two digits>/release --challenge ../oncosys-hackathon-challenge --out out/E<two digits>/findings.json
    ```
 
 ## If a judge doubts the results: Fool the Tower
@@ -105,8 +106,8 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 
 ## Check at Friday's 9 PM dry run
 
-- **PFI may change.** Today the board shows "Ready · 4 pending" and the Overview says "4 checks not built yet", because Aakruti's survival checks aren't built. Once they land it should say Conditional (what PLAN.md expects), so re-read the board and adjust that line.
-- **Nothing pending.** Until every check a card lists is built or removed from the card, the board says "N pending" and the Overview says "N checks not built yet". Both must be gone before judging.
+- **PFI is Conditional now.** In its group, 2 samples are redacted, 11 have zero follow-up, and the subtype columns disagree. The script's "the block is gone" line still holds; say Conditional if asked.
+- **Nothing pending.** Every check is built, so neither the board nor the Overview mentions unbuilt checks.
 - **Hook.** Keep the practice hook. Don't use the duplicate-patient story (TCGA-AN-A0FE and TCGA-AN-A0FG): neither sample is in any analysis, and the fact comes from outside annotations, which the rules ask us not to link.
 - **The hospital line.** On the ER-alpha question the hospital mix (0.154 on the practice envelope, over the card's 0.15 limit) is the first reason and the first next step, so the script now says it. It's the bias check the event page asks for. If a judge asks more: requiring protein data changes which hospitals the tumors come from, and the next step is to check the result holds with each large hospital left out.
 - **Timing.** Read it aloud twice with a stopwatch.
