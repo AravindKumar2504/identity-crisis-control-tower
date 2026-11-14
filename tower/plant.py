@@ -49,17 +49,31 @@ def plant(challenge: pathlib.Path, changes: list[dict], seed: int | None = None,
             os.symlink((challenge / "data" / "tcga-brca" / "raw" / f).resolve(), five / f)
     mr = _generator(challenge)
     mr.RAW, mr.OUT, mr.shutil = five, out_dir, _Links
+    tries = 5 if seed is None else 1                    # a random seed can be redrawn; a given one is kept
     seed = random.randrange(10**6) if seed is None else int(seed)
-    name = f"planted-{seed}"
-    cfg_path = out_dir / f"{name}.config.json"
-    cfg_path.write_text(json.dumps({"name": name, "seed": seed, "changes": changes}, indent=1))
-    argv = sys.argv
-    try:
-        sys.argv = ["make_release.py", "--config", str(cfg_path)]
-        with contextlib.redirect_stdout(io.StringIO()):
-            mr.main()
-    finally:
-        sys.argv = argv
+    for attempt in range(tries):
+        name = f"planted-{seed}"
+        cfg_path = out_dir / f"{name}.config.json"
+        cfg_path.write_text(json.dumps({"name": name, "seed": seed, "changes": changes}, indent=1))
+        argv = sys.argv
+        try:
+            sys.argv = ["make_release.py", "--config", str(cfg_path)]
+            with contextlib.redirect_stdout(io.StringIO()):
+                mr.main()
+            break
+        except (Exception, SystemExit) as e:
+            # The generator makes the release folder before it applies the changes, so a combination it refuses
+            # would leave an empty release behind, and the screen would offer it. Remove what it left.
+            shutil.rmtree(out_dir / name, ignore_errors=True)
+            cfg_path.unlink(missing_ok=True)
+            if isinstance(e, KeyError) and attempt < tries - 1:
+                seed = random.randrange(10**6)      # Luminal A copies over Luminal A tumors drew the same sample twice
+                continue
+            if isinstance(e, SystemExit):
+                raise RuntimeError(f"the generator stopped: {e}") from None
+            raise
+        finally:
+            sys.argv = argv
     rel = out_dir / name
     key_path = out_dir / f"{name}.answer.json"
     (rel / "CHANGES.json").replace(key_path)            # keep the answer key out of the release the tool reads

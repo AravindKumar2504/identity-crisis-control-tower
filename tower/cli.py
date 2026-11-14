@@ -31,7 +31,7 @@ def find_challenge(given: str | None) -> pathlib.Path:
 
 
 def run_compare(dir_a, dir_b, out: pathlib.Path, analyses=None, name_a=None, name_b=None,
-                challenge: pathlib.Path | None = None, quiet=False) -> dict:
+                challenge: pathlib.Path | None = None, quiet=False, strict=False) -> dict:
     t0 = time.time()
     a = load_release(dir_a, name_a)
     b = load_release(dir_b, name_b)
@@ -44,15 +44,15 @@ def run_compare(dir_a, dir_b, out: pathlib.Path, analyses=None, name_a=None, nam
     elapsed = time.time() - t0
     if not quiet:
         print_summary(doc, out, elapsed)
-    if challenge:
-        validate(out, challenge)
+    if challenge and validate(out, challenge) is False and strict:
+        sys.exit(f"The organizers' validator rejected {out} (its message is above).")
     return doc
 
 
-def validate(path: pathlib.Path, challenge: pathlib.Path) -> bool:
+def validate(path: pathlib.Path, challenge: pathlib.Path) -> bool | None:
     v = challenge / "format" / "validate.py"
     if not v.exists():
-        return False
+        return None                                   # no validator to ask
     r = subprocess.run([sys.executable, str(v), str(path)], capture_output=True, text=True)
     print((r.stdout or r.stderr).strip())
     return r.returncode == 0
@@ -189,12 +189,13 @@ def main(argv=None) -> None:
 
     if args.cmd == "compare":
         ch = find_challenge(args.challenge) if args.challenge else None
-        run_compare(args.release_a, args.release_b, pathlib.Path(args.out), sel, challenge=ch)
+        run_compare(args.release_a, args.release_b, pathlib.Path(args.out), sel, challenge=ch, strict=True)
         return
 
     challenge = find_challenge(args.challenge)
     t0 = time.time()
-    r = subprocess.run([sys.executable, "envelopes/unseal.py", args.number, *args.words], cwd=challenge)
+    r = subprocess.run([sys.executable, "envelopes/unseal.py", args.number, *args.words], cwd=challenge,
+                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})   # unseal prints check marks; Windows pipes use cp1252
     if r.returncode != 0:
         sys.exit("Unsealing failed (see the message above). Check the envelope number and the four words.")
     name = "practice" if args.number.lower() == "practice" else f"E{int(args.number.upper().lstrip('E')):02d}"
@@ -202,7 +203,7 @@ def main(argv=None) -> None:
     print(f"Unsealed in {time.time() - t0:.1f} s; comparing envelope {name}'s release with release A")
     run_compare(challenge / "data" / "tcga-brca" / "raw", release_b,
                 pathlib.Path(args.out_dir) / name / "findings.json", sel, name_a="release-A", name_b=name,
-                challenge=challenge)
+                challenge=challenge, strict=True)
     print(f"Total time from unseal to findings: {time.time() - t0:.1f} s")
     if args.card:
         from .cards import list_cards

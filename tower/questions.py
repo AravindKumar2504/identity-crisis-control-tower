@@ -89,6 +89,14 @@ def protein_question(protein: str, grouping: str) -> dict:
     group = {"sample_type": "01", "in_files": ["protein_rppa.tsv.gz"]}
     group.update({"values": {grouping: values}} if values else {"not_blank": [grouping]})
     is_a1 = protein == "ERALPHA" and grouping == "breast_carcinoma_estrogen_receptor_status"
+    # The same checks as the matching cards in cards/ (er-alpha-by-er, her2-positive-protein, subtype-mix), so a
+    # question asked here gets the verdict its card would.
+    clinical, checks = [grouping], ["inputs_present", "missing_values", "site_shift"]
+    if grouping == "lab_proc_her2_neu_immunohistochemistry_receptor_status":
+        clinical.append("HER2_Final_Status_nature2012")
+        checks.insert(1, "her2_field_conflict")
+    elif grouping == "PAM50Call_RNAseq":            # a cross-check only: the 2012 column isn't an input, as in the survival cards
+        checks.insert(1, "subtype_columns_disagree")
     return {
         "id": _slug("protein", protein, label),
         "title": f"{protein} protein by {label} ({compared}), primary tumors",
@@ -100,10 +108,10 @@ def protein_question(protein: str, grouping: str) -> dict:
         "outcome": f"Mean {protein} protein (the {protein} row of protein_rppa.tsv.gz) in each group.",
         "not_acceptable": "Comparing groups whose labels or measurements changed without saying so.",
         **_COMMON,
-        "uses": {"clinical.tsv": [grouping], "protein_rppa.tsv.gz": [protein]},
+        "uses": {"clinical.tsv": clinical, "protein_rppa.tsv.gz": [protein]},
         "group": group,
-        "limits": {"missing_fraction": 0.10},
-        "checks": ["inputs_present", "missing_values"],
+        "limits": {"missing_fraction": 0.10, "site_shift_tvd": 0.15},
+        "checks": checks,
         **({"analyses": ["A1"]} if is_a1 else {}),
     }
 

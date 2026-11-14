@@ -148,6 +148,14 @@ def label_derivation(release, card):
     if not label:
         return [Issue(id="label_derivation", title="The card trains no model", status="pass", material=False,
                       pre_existing=False)]
+    if not feats:                                  # e.g. every data type cleared in "Ask your own question"
+        return [Issue(id="label_derivation", title=f"The question names no data for the model to learn {label} from, "
+                      "so its design can't be judged", status="unknown", material=True, pre_existing=False,
+                      fields=[f"clinical.tsv:{label}"],
+                      rule="A model question must name at least one data type the model learns from.",
+                      source="The card's `features` list",
+                      next_step="Choose at least one data type for the model to learn from.",
+                      evidence_needed="At least one data type in the card's `features`.")]
     src, why = DERIVED_FROM.get(label, ([], ""))
     overlap = sorted(set(src) & feats)
     if overlap:

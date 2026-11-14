@@ -24,10 +24,12 @@ def a1_frames(clin: pd.DataFrame, prot: pd.DataFrame) -> dict:
     er = clin.set_index("sampleID")[ER]
     samples = [s for s in prot.columns if sample_type(str(s)) == "01" and er.get(s) in ("Positive", "Negative")]
     vals = prot.loc["ERALPHA", samples].astype(float)
-    pos = vals[[s for s in samples if er[s] == "Positive"]].to_numpy()
-    neg = vals[[s for s in samples if er[s] == "Negative"]].to_numpy()
-    return {"difference": float(pos.mean() - neg.mean()), "n": len(samples), "pos": pos, "neg": neg,
-            "samples": samples}
+    # Blank cells are skipped, as A1 and the organizers' reference_analyses.py do (pandas means skip them); n still
+    # counts every ER-labelled sample, as theirs does.
+    pos = vals[[s for s in samples if er[s] == "Positive"]].dropna().to_numpy()
+    neg = vals[[s for s in samples if er[s] == "Negative"]].dropna().to_numpy()
+    diff = float(pos.mean() - neg.mean()) if len(pos) and len(neg) else float("nan")
+    return {"difference": diff, "n": len(samples), "pos": pos, "neg": neg, "samples": samples}
 
 
 def a2_frames(clin: pd.DataFrame) -> dict:
@@ -132,7 +134,8 @@ def conclusion(cmp_or_release, flagged: list[str] | None = None) -> dict:
     lo, hi = a1_range(after)
     holds = after["difference"] > 0 and lo > 0
     shift = (abs(after["difference"] - before["difference"]) / max(abs(before["difference"]), 1e-9) * 100) if before else 0.0
-    reversed_ = before is not None and np.sign(before["difference"]) != np.sign(after["difference"])
+    reversed_ = (before is not None and bool(np.isfinite(before["difference"]))          # NaN is never a reversal
+                 and np.sign(before["difference"]) != np.sign(after["difference"]))
     status = "reversed" if reversed_ else ("holds" if holds else "fragile")
     return {"analysis": "A1", "claim": "ER-positive primary tumors have higher mean ER-alpha protein than ER-negative ones",
             "status": status, "difference": round(after["difference"], 3), "range_95": [round(lo, 3), round(hi, 3)],
