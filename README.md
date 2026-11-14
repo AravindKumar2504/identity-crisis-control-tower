@@ -2,6 +2,8 @@
 
 Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open Accelerator, OncoSys AI, Northeastern University, Red Hat; November 11-14, 2026). Track 1: Cohort Firewall.
 
+**Demo video (3:20):** [docs/demo.mp4](docs/demo.mp4), on the practice envelope. The narration is a synthetic voice (Kokoro, run locally).
+
 ## The user and the one workflow
 
 **User:** a research data engineer who keeps an analysis-ready copy of TCGA breast cancer data for the scientists who use it, and receives new releases of it. Who they are and what goes wrong for them, with sources: [docs/USER.md](docs/USER.md).
@@ -17,7 +19,7 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 - Does the conclusion still hold? Each change's own effect is measured by undoing it alone and rerunning the analysis, so severity rests on a number (on the practice envelope this reproduces the organizers' reference severities: swap high, copies high, lost samples medium). For A1 the tool also reports a 95% range of the ER+ minus ER- difference from 1,000 resamples, with and without the flagged samples.
 - The review screen works (`python -m streamlit run app.py --server.address localhost`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
-- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. Next: the 9 PM dry run and the demo video. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
+- The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. Next: Saturday's demo. The demo video is linked at the top. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
 
 ## Quick start (fresh machine)
 

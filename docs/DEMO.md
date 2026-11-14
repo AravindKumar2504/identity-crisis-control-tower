@@ -17,7 +17,7 @@ Draft v4, Fri 11/13 evening (every check built; Aravind presents). Every line be
 
 ### 0:00 Hook (20 s) · screen: Overview, the verdict card
 
-> Our user is a research data engineer, and a new TCGA breast cancer release just arrived. Same files, same 747 protein samples. A row count sees nothing wrong. But two samples traded data, five are copies of other samples, and five real ones are gone. Cohort Control Tower catches that, then asks: is this release still fit for your research question?
+> Our user is a research data engineer, and a new TCGA breast cancer release just arrived. It still has 747 protein samples, so a row count sees nothing wrong. But two samples traded data, five are copies of other samples, and five real ones are gone. Cohort Control Tower catches that, then asks: is this release still fit for your research question?
 
 ### 0:20 What changed (60 s) · screen: the What changed page, then Evidence (Analyses tab), then the Overview
 
@@ -59,7 +59,7 @@ Draft v4, Fri 11/13 evening (every check built; Aravind presents). Every line be
 
 ### 2:50 Close (10 s)
 
-> We tested it on 20 releases with answer keys written first: 20 of 20 pass, in about a second each. Hand us the envelope, plant your own errors, or ask your own research question.
+> We tested it on 20 releases with answer keys written first: all 20 pass, in about ten seconds in total. Hand us the envelope, plant your own errors, or ask your own research question.
 
 **If you run over 3:00:** skip the optional hormone therapy click. Next, shorten the close to "20 of 20 pass. Hand us the envelope."
 
@@ -107,7 +107,7 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 - **Why is ER-alpha Conditional even on release A?** Requiring protein data changes which hospitals the tumors come from: the hospital mix is off by 0.155 (0.154 on the practice envelope), over the question's 0.15 limit. The next step is to check that the result holds with each large hospital left out.
 - **How do you decide severity?** By the measured effect on the answer: we undo each change on its own and rerun A1. The swap moves the difference by 1.16%, the copies by 0.12%, the losses by 0.03%. On the practice envelope that gives the organizers' reference severities: swap high, copies high, losses medium.
 - **The release says one verdict and the question another. Which is right?** They answer different questions. The release verdict applies the organizers' rule for their two analyses, A1 and A2; the question's verdict says whether this release fits one research question, and lists the same changes with their fixes. If they ever disagree, go with the stricter one.
-- **How fast is it?** Unsealing to `findings.json` takes under 2 seconds on the practice envelope, and each test release takes about a second. The organizers ask for under a minute.
+- **How fast is it?** Unsealing to `findings.json` takes under 2 seconds on the practice envelope, and each test release takes 0.1 to 1.3 seconds (about 10 seconds for all 20). The organizers ask for under a minute.
 - **What else did you test?** 481 random releases from the organizers' generator: 476 match its answer key exactly, in 4 of the other 5 the key lists a change that left no trace in the data, and the fifth is a copy whose original was removed, which the tool reports as a rename. Also 30 damaged copies of the practice release, which all run without a crash, and 16 unit tests for the release A checks.
 - **Who's the user, and what do they do next?** A research data engineer who keeps an analysis-ready copy of the TCGA breast cancer data. They approve, reject or ask for more evidence on each proposed fix, then sign off, and the decisions are saved in the event's shared format.
 - **Couldn't a changed label be a real correction?** Yes, and the tool says so: it can't see the pathology report behind a value. It reports the change, asks a person to confirm it against the source records, and keeps the release A value until then.

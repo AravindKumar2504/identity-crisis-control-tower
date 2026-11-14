@@ -251,7 +251,7 @@ Clone this repo **next to** the challenge repo (same parent folder).
 
 The full script, with timings, clicks and the envelope steps, is in [DEMO.md](DEMO.md).
 
-1. Hook (20 s, Overview): same files, same 747 protein samples, but two swapped, five copied and five gone. A row count sees nothing.
+1. Hook (20 s, Overview): still 747 protein samples, but two swapped, five copied and five gone. A row count sees nothing.
 2. New release (60 s, What changed, then Evidence's Analyses tab, then back to the Overview): every changed sample named; the lost ones are all HER2-enriched; only A1 rerun, A2 left alone; the conclusion holds and survives 61 worst-case swaps; the next steps and what the tool can't tell you.
 3. Change the question (60 s, the question board on the Overview): overall survival in Luminal A is Blocked, with the source; switch to progression-free interval and the block is gone.
 4. Review (30 s, Review and sign-off): a person approves or rejects each fix and signs off; the evidence trail exports with it.
