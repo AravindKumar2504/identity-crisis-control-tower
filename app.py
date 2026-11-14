@@ -228,7 +228,7 @@ def release_options() -> dict[str, str | None]:
     for p in sorted((CHALLENGE / "data" / "tcga-brca" / "releases").glob("*")):
         if p.is_dir():
             opts[f"Test release {p.name}"] = str(p)
-    planted = sorted((p for p in (REPO / "out" / "fool").glob("planted-*") if p.is_dir()),
+    planted = sorted((p for p in (REPO / "out" / "fool").glob("planted-*") if (p / "clinical.tsv").exists()),  # skip broken leftovers
                      key=lambda q: q.stat().st_mtime)[-5:]
     for p in planted:
         opts[f"Planted release {p.name.split('-', 1)[1]}"] = str(p)
@@ -1157,6 +1157,7 @@ def page_fool() -> None:
                     st.session_state["fool"] = {"label": f"Planted release {rel.name.split('-', 1)[1]}",
                                                 **score(CHALLENGE, rel, answer)}
             except Exception as e:  # e.g. more copies than the subtype has samples in that file
+                st.session_state.pop("fool", None)          # don't leave the last run's score under this error
                 st.error(f"The generator couldn't plant that combination ({type(e).__name__}: {e}). Try fewer errors.")
     res = st.session_state.get("fool")
     if res:
