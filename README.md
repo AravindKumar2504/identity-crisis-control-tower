@@ -104,6 +104,9 @@ python -m tower compare ../oncosys-hackathon-challenge/data/tcga-brca/raw <new r
 ### Reproduce the scorecard
 
 ```bash
+python ../oncosys-hackathon-challenge/data/tcga-brca/make_release.py
+```
+```bash
 for c in tests/releases/t*.json; do python ../oncosys-hackathon-challenge/data/tcga-brca/make_release.py --config "$c"; done
 ```
 ```bash
@@ -172,7 +175,7 @@ Versions are the ones installed when this list was made; `requirements.txt` sets
 - Subtype and HER2 columns (cited by the label and design checks): Cancer Genome Atlas Network. Comprehensive molecular portraits of human breast tumours. *Nature* 490, 61–70 (2012).
 - PAM50 (cited by the model-design rule): Parker, J.S. et al. Supervised Risk Predictor of Breast Cancer Based on Intrinsic Subtypes. *J Clin Oncol* 27, 1160–1167 (2009).
 
-No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); Gitleaks will be run before submission.
+No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); a Gitleaks scan of the full history on Friday found none.
 
 No AI model or API key is used.
 
