@@ -6,7 +6,7 @@ Ten-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 
 
 - All nine release A checks are built and merged (`survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`), so nothing shows as pending on the screen.
 - The README lists the team, links the demo video and has the current numbers. Aravind presents (see [DEMO.md](DEMO.md), Roles).
-- 93 automated tests: `python -m unittest discover -s tests` (README, Run the tests).
+- 99 automated tests: `python -m unittest discover -s tests` (README, Run the tests).
 - The assignments below are Friday's plan, kept as the record of who built what. Before the demo: `git pull` in both repos, `python -m tower doctor --full`, then the steps under "Saturday (everyone)".
 
 ## Friday and Saturday: who does what (read this first)
@@ -223,8 +223,8 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
 | P2 | Error budget and Fool the Tower | Aravind | **Done** (Fri) |
 | P2 | The official sample list cited in findings notes | Aravind | **Done** (Fri) |
-| P2 | Verified AI summary (restates only computed facts, with links to them) | Aravind | Not built (optional) |
-| P2 | Automated tests that run without the TCGA download | | **Done** (Sat): 93 tests in `tests/`, 75 of them on made-up releases |
+| P2 | Verified AI summary (restates only computed facts, with links to them) | Aravind | **Done** (Sat): optional, on the Overview; a local model explains one result and every id it cites is checked (`tower/ai_summary.py`) |
+| P2 | Automated tests that run without the TCGA download | Romario | **Done** (Sat): 99 tests in `tests/`, 81 of them without the download |
 
 ## Timeline
 

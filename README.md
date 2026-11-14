@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 - The review screen works (`python -m streamlit run app.py --server.address localhost`), in five pages: Overview, What changed, Evidence, Review and sign-off, and Fool the Tower. It opens empty and shows results only after you choose a release and a question and click Show results. The Overview shows the verdict, what to do next, what the tool can't tell you, and a question board with the verdict for every research question on the same release. The Analyses view (on the Evidence page) runs the organizers' own `reference_analyses.py` on the same release so a judge can see the numbers match.
 - Two ways to test the answers themselves: the error budget says how many worst-case errors an answer survives (on release A the ER-alpha answer survives 63 swaps between ER groups), and Fool the Tower lets a judge plant errors with the organizers' generator and see the tool's score.
 - The nine release A data checks are built and merged to main: `survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`. The demo video is linked at the top. Who does what, and what was added on Friday: [docs/PLAN.md](docs/PLAN.md).
-- Tests: 93 automated tests (`python -m unittest discover -s tests`). 75 run on small made-up releases with no download; the other 18 need release A and are skipped without it. See [Run the tests](#run-the-tests).
+- Tests: 99 automated tests (`python -m unittest discover -s tests`). 81 run with no download (on small made-up releases, plus the AI summary's guards); the other 18 need release A and are skipped without it. See [Run the tests](#run-the-tests).
 - Saturday fixes: the subtype chart on Evidence > Analyses drew no bars; a repeated row name in a data file crashed the comparison; an ER group left with no values gave `nan` results; the sign-off and Fool the Tower could fail on Windows.
 - Saturday additions: a sample id repeated in a file is reported as its own finding and is never counted twice by A1 or A2; a sign-off counts only after the organizers' validator passes; `readiness.json` records how the 95% range is computed (percentile bootstrap, 1,000 resamples, seed 7); `report.md` and the What changed page count identical, changed, missing and new samples file by file.
 
@@ -135,7 +135,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 python -m unittest discover -s tests
 ```
 
-No extra install is needed (with pytest installed, `python -m pytest -q` works too). Without the challenge repo next to this one, 75 tests run on small made-up releases built by `tests/synth.py` and 18 are skipped. With release A fetched and the practice envelope opened (`python -m tower doctor` checks the first and does the second), all 93 run, including the release A numbers and a pass over every page of the review screen.
+No extra install is needed (with pytest installed, `python -m pytest -q` works too). Without the challenge repo next to this one, 81 tests run (on small made-up releases built by `tests/synth.py`, plus the AI summary's guards) and 18 are skipped. With release A fetched and the practice envelope opened (`python -m tower doctor` checks the first and does the second), all 99 run, including the release A numbers and a pass over every page of the review screen.
 
 ## What's in this repo
 
@@ -230,3 +230,4 @@ Identity_Crisis, Track 1 (Cohort Firewall):
 - Aakruti Ghatole
 - Chirag Suthar
 - Madhu Vadhani Madasamy
+- Romario Joseph
