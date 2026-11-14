@@ -4,7 +4,7 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 
 **Demo video (3:20):** [docs/demo.mp4](docs/demo.mp4), on the practice envelope. The narration is a synthetic voice (Kokoro, run locally).
 
-https://github.com/user-attachments/assets/86a4a75c-b7d4-48b7-be3a-5032367b80a6
+https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 
 ## The user and the one workflow
 
