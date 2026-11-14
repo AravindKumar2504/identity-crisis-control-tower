@@ -12,7 +12,7 @@ https://github.com/user-attachments/assets/c70bbd33-5d4f-49cb-bcf9-b3909992d149
 
 **Workflow they finish:** point the tool at a new release. It names every sample that changed (swapped, copied under a new id, missing, relabelled), reruns only the analyses those changes touch, says whether the release is still fit for the research question, and writes `findings.json` in the event's shared format so a reviewer can approve or reject each proposed fix.
 
-## Status (Friday, November 13)
+## Status (Saturday, November 14)
 
 - Release comparison, A1/A2 reruns, `findings.json` and the sealed-envelope command work.
 - On the organizers' practice envelope it reports the same swap, the same five copies with their sources, the same five lost samples and the same A1 result (3.051 to 3.019) as the organizers' reference output, and its file passes `format/validate.py`. Unsealing plus checking takes about 2 seconds.
