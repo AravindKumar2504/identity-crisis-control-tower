@@ -2,6 +2,13 @@
 
 Ten-minute read for the team. Track 1 (Cohort Firewall). Code freeze **Saturday 2:15 PM ET**; be at the Cabral Center by 10 AM (doors 9:30).
 
+## Status, Saturday November 14
+
+- All nine release A checks are built and merged (`survival.py`, `labels.py`, `coverage.py` and `design.py` in `tower/checks/`), so nothing shows as pending on the screen.
+- The README lists the team, links the demo video and has the current numbers. Aravind presents (see [DEMO.md](DEMO.md), Roles).
+- 93 automated tests: `python -m unittest discover -s tests` (README, Run the tests).
+- The assignments below are Friday's plan, kept as the record of who built what. Before the demo: `git pull` in both repos, `python -m tower doctor --full`, then the steps under "Saturday (everyone)".
+
 ## Friday and Saturday: who does what (read this first)
 
 Aravind may be asleep for a while, so everything you need is here. The remaining work is split three ways, about 4 to 5 hours each, and **nobody edits the same files**, so you can all work at the same time without merge conflicts. If something here is unclear, use your best judgment, write down what you decided in your pull request, and post it in the group.
@@ -36,7 +43,7 @@ Aravind added the following (all pushed, so `git pull` gets it):
 - **README:** a "Required output" section that links `findings.json`, as the judging page asks.
 - **DEMO.md:** names our user, says one limit aloud, adds the error budget and a Fool the Tower move for Q&A, and follows the new pages. Madhu: pull before you edit it.
 
-**Status, Friday 10:30 AM:** all nine release A checks below are still to build. Until they land, the board marks them as pending (for example "Ready · 4 pending" for PFI in Luminal A), and several verdicts in the cards table further down change when they do.
+**Status, Friday 10:30 AM:** all nine release A checks below were still to build, and the board marked them as pending (for example "Ready · 4 pending" for PFI in Luminal A). **Since Friday evening all nine are built and merged**; the cards table further down gives the verdict expected with every check built.
 
 ### Who owns which files
 
@@ -144,7 +151,7 @@ Done Friday morning (pushed): the five-page screen, the bias check, what the too
 - `git pull` in both repos, then `python -m tower doctor --full`.
 - One full rehearsal around 11. Code freeze at 2:15 PM: no pushes after that.
 - Before the demo, set the screen up as DEMO.md's "Before you start" says: the practice envelope, the ER-alpha question, and a reviewer name and role on the Review and sign-off page.
-- Demo: Madhu speaks and Aravind drives. The sealed-envelope steps are in [DEMO.md](DEMO.md).
+- Demo: Aravind speaks and drives (a teammate can drive instead). The sealed-envelope steps are in [DEMO.md](DEMO.md).
 
 ## The idea in one paragraph
 
@@ -178,9 +185,9 @@ A research engineer gets a new release of the TCGA breast cancer data. Our tool 
 
 ## Research-question cards (first set)
 
-Fields follow the organizers' card: intended use, group studied, outcome, acceptable limitations, not acceptable, out of scope. All numbers below were measured on the frozen release A. "Today" is what the screen shows now, with the unbuilt checks pending; the next column is what we expect once they're built. Check any card with `python -m tower check --card <id> --allow-missing-checks`.
+Fields follow the organizers' card: intended use, group studied, outcome, acceptable limitations, not acceptable, out of scope. All numbers below were measured on the frozen release A. The first verdict column is what the screen showed on Friday morning, with the unbuilt checks pending; the next is the verdict expected with every check built. Print the current verdicts with `python -m tower check --card all`.
 
-| Card (id) | Today on release A | Once every check is built | Why |
+| Card (id) | Friday morning on release A (checks pending) | With every check built | Why |
 |---|---|---|---|
 | ER-alpha protein, ER-positive vs ER-negative primary tumors, A1 (`er-alpha-by-er`) | Conditional, 1 pending | Conditional | The group's hospital mix shifts by 0.155, over the card's 0.15 limit (`site_shift`); ER is blank for only 5.7%. On a new release it also names every changed sample, shows before and after, and says whether the conclusion still holds |
 | ESR1 gene expression vs clinical ER status (`esr1-expression-vs-er`) | Ready, 1 pending | Ready on release A; Insufficient Evidence on an envelope | ER is blank for 4.6% (passes); envelopes have no RNA |
@@ -208,15 +215,16 @@ Fields follow the organizers' card: intended use, group studied, outcome, accept
 | P0 | README quick start | Aravind | **Done**; Chirag confirms it from a fresh clone |
 | P0 | Scorecard: generated releases, answer keys written by the organizers' generator, no-change release | Aravind | **Done**: `scripts/scorecard.py`, configs in `tests/releases/` |
 | P1 | Question cards + verdict rules + `readiness.json` with the evidence trail | Aravind | **Done** (Fri): 8 cards with verdicts, reasons, next steps and the evidence trail |
-| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti (5), Chirag (4) | To build (Fri): split and specified above; each check returns `Issue`s with evidence rows and a source |
+| P1 | Release A checks with sources + A2 robustness (both subtype columns) | Aakruti (5), Chirag (4) | **Done** (Fri): nine checks in `tower/checks/`, each returning `Issue`s with evidence rows and a source; unit tests in `tests/` |
 | P1 | Screen: verdict, reasons, evidence trail, review and sign-off | Aravind | **Done** (Fri): five pages with a top menu (Overview, What changed, Evidence, Review and sign-off, Fool the Tower). Still to test at the dry run: a judge finishes it without us talking |
 | P1 | Checkpoint 2: run our paired team's repo from a fresh folder using only their README, and run ours from scratch | Chirag | A list of what broke, posted in Discord and the group. For ours, `python -m tower doctor` checks the whole setup in one command |
 | P1 | Bias check (`site_shift`), "What this can't tell you", the samples this question can use | Aravind | **Done** (Fri) |
-| P2 | README Team section, demo video, 3-minute pitch (docs/DEMO.md), user research and Discord outreach | Madhu | Specified above; rehearsed under 3 minutes |
+| P2 | README Team section, demo video, 3-minute pitch (docs/DEMO.md), user research and Discord outreach | Madhu | Team section and demo video **done** (README); pitch in docs/DEMO.md |
 | P2 | Ask your own question: a form builds a card from a few choices and judges it with the same rules | Aravind | **Done** (Fri). Optional next: a local model fills the form from a typed sentence (Chirag); the rules still decide |
 | P2 | Error budget and Fool the Tower | Aravind | **Done** (Fri) |
 | P2 | The official sample list cited in findings notes | Aravind | **Done** (Fri) |
-| P2 | Verified AI summary (restates only computed facts, with links to them) | Aravind | After the 9 PM dry run |
+| P2 | Verified AI summary (restates only computed facts, with links to them) | Aravind | Not built (optional) |
+| P2 | Automated tests that run without the TCGA download | | **Done** (Sat): 93 tests in `tests/`, 75 of them on made-up releases |
 
 ## Timeline
 
