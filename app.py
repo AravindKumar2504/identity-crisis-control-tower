@@ -123,6 +123,11 @@ SECTION_HELP = {
     "more": "The full reasoning, the question's details, and what the terms on this screen mean.",
     "budget": "How many worst-case data errors the answer survives before it changes.",
 }
+INTRO = ("How to read this page: we compare a new version of the TCGA breast cancer data with the original (release A), "
+         "sample by sample. For the research question you pick, the verdict says whether the new data can still answer "
+         "it: Ready (fine to use), Conditional (usable after a person checks the flagged items), Blocked (the data can't "
+         "support this question) or Insufficient Evidence (the tool can't tell). Below it: what changed, what to do "
+         "next, and what the tool can't tell you.")
 OUTCOME_HELP = (f"OS: {GLOSSARY['OS']} PFI: {GLOSSARY['PFI']} DSS: disease-specific survival, the time to death from "
                 "the cancer itself or to the last follow-up. DFI: disease-free interval, the time until the disease "
                 "returns after treatment left no sign of it, or to the last follow-up.")
@@ -182,6 +187,7 @@ st.markdown("""
 /* A wider sidebar (still dark, from config.toml), so its labels and help fit on one or two lines. */
 section[data-testid="stSidebar"][aria-expanded="true"] {width:380px !important; min-width:380px !important;}
 [title] {cursor:help;}
+.ct-intro {font-size:.95rem; color:#21384A; line-height:1.55; margin:0 0 1rem; max-width:1100px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -565,6 +571,7 @@ def board_help(q: dict) -> str:
 def page_overview() -> None:
     n_changes = len(findings["findings"]) if findings else 0
     signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
+    st.markdown('<div class="ct-intro">' + esc(INTRO) + '</div>', unsafe_allow_html=True)
     left, right = st.columns([3, 2], gap="medium")
     left.markdown(f"""
 <div class="ct-hero" style="--c:{colour}; --bg:{tint}">
@@ -574,18 +581,16 @@ def page_overview() -> None:
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
   <div class="ct-sum">{esc(headline())}</div>
 </div>""", unsafe_allow_html=True)
-    kpis = [
+    kpis = [   # label, value, what it means in one plain line, state
         ("Changes found", f"{n_changes}" if findings else "n/a",
-         "differences from release A, in any file" if findings else "pick a new release",
-         "warn" if n_changes else "done"),
+         "things that differ between the new data and release A", "warn" if n_changes else "done"),
         ("Touch this question", f"{len(touching)}" if findings else "n/a",
-         "of those, in what this question reads" if touching
-         else "none of them reach this question" if findings else "pick a new release",
-         "warn" if touching else "done"),
-        ("Decisions", f"{decided} of {total}", "proposed fixes and problems a reviewer has decided",
-         "done" if decided == total else "warn"),
+         "of those, changes in data this question uses", "warn" if touching else "done"),
+        ("Decisions", f"{decided} of {total}",
+         "flagged items a reviewer has approved, rejected or questioned", "done" if decided == total else "warn"),
         ("Sign-off", "Signed" if signed_by else "Pending",
-         f"by {signed_by}" if signed_by else "a reviewer signs on the Review page", "done" if signed_by else "todo"),
+         f"approved by {signed_by}" if signed_by else "whether a named reviewer has approved this result",
+         "done" if signed_by else "todo"),
     ]
     right.markdown('<div class="ct-kpis">' + "".join(
         f'<div class="ct-step {s}" title="{esc(KPI_HELP[k])}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
