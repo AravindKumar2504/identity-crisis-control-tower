@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release, UnreadableFile, sample_type
+from .release import ALL_FILES, OPTIONAL_FILES, ROW_FILES, Release, UnreadableFile, sample_count, sample_type
 
 BLANKS = {"", "NA", "nan", "NaN", "null", "None"}
 SUBTYPE_NAMES = {"LumA": "Luminal A", "LumB": "Luminal B", "Basal": "Basal-like", "Her2": "HER2-enriched",
@@ -130,8 +130,39 @@ def compare(a: Release, b: Release) -> Comparison:
             changes += _duplicated(f, ta, tb, b)
             changes += _diff_rows(f, ta.frame, tb.frame, a, b, skip=set(tb.duplicated_ids))
         else:
+            changes += _duplicated(f, ta, tb, b)
             changes += _diff_matrix(f, ta, tb, a, b)
     return Comparison(a, b, changes, unchanged, compared, notes)
+
+
+FILE_WORDS = {"clinical.tsv": "clinical", "survival.tsv": "survival", "mutation_gene_level.tsv.gz": "mutations",
+              "copy_number_gistic.tsv.gz": "copy number", "protein_rppa.tsv.gz": "protein", "rna_hiseq.tsv.gz": "RNA"}
+
+
+def file_summary(cmp: Comparison) -> list[dict]:
+    """Per file: samples identical, changed, missing and new."""
+    rows = []
+    for f in ALL_FILES:
+        if not cmp.a.has(f):
+            continue
+        row = {"file": f, "data": FILE_WORDS.get(f, f), "status": "", "in_release_a": None, "in_new_release": None,
+               "identical": None, "changed": None, "missing": None, "new": None, "structure": ""}
+        if f in cmp.unchanged_files:
+            n = sample_count(cmp.a.path / f, f)
+            row.update(status="identical file", in_release_a=n, in_new_release=n, identical=n, changed=0, missing=0, new=0)
+        elif f in cmp.compared_files:
+            sa, sb = set(cmp.a.table(f).samples()), set(cmp.b.table(f).samples())
+            mine = [ch for ch in cmp.changes if ch.file == f]
+            changed = len({s for ch in mine for s in ch.samples} & sa & sb)
+            row.update(status="compared", in_release_a=len(sa), in_new_release=len(sb),
+                       identical=len(sa & sb) - changed, changed=changed, missing=len(sa - sb), new=len(sb - sa),
+                       structure="rows or columns added or removed" if any(not ch.samples for ch in mine) else "")
+        else:
+            why = ("unreadable in the new release" if f in cmp.b.unreadable else
+                   "not in the new release" + (" (expected: envelopes have no RNA)" if f in OPTIONAL_FILES else ""))
+            row.update(status=why, in_release_a=sample_count(cmp.a.path / f, f))
+        rows.append(row)
+    return rows
 
 
 def _unreadable(f: str, b: Release) -> Change:
@@ -357,14 +388,20 @@ def _all_blank(vals) -> bool:
 
 # ----------------------------------------------------------------------------------------------- row files
 def _duplicated(f, ta, tb, b) -> list[Change]:
-    """Sample ids that sit on more than one row in the new release (and didn't in release A): a join on the id counts
-    them twice. Their rows aren't compared value by value, because the tool can't tell which row is the real one."""
+    """Sample ids on more than one row or column in the new release and not in release A."""
     new = [s for s in tb.duplicated_ids if s not in set(ta.duplicated_ids)]
     if not new:
         return []
+    it = "it" if len(new) == 1 else "them"
+    if tb.layout == "columns":
+        return [Change("join_inflation", f, new,
+                       f"In {f}, {_n(len(new), 'sample id')} {'heads' if len(new) == 1 else 'head'} more than one column "
+                       f"in {_rel(b.name)}, so the file holds more than one profile for {it}. Only the first is compared.",
+                       notes={s: f"on more than one column in {b.name}; the first is kept" for s in new},
+                       evidence_release={s: "B" for s in new}, detail={"duplicated_ids": new, "layout": "columns"})]
     return [Change("join_inflation", f, new,
                    f"In {f}, {_n(len(new), 'sample id')} {'appears' if len(new) == 1 else 'appear'} on more than one row in "
-                   f"{_rel(b.name)}, so anything that joins on the sample id counts {'it' if len(new) == 1 else 'them'} twice.",
+                   f"{_rel(b.name)}, so anything that joins on the sample id counts {it} twice.",
                    notes={s: f"on more than one row in {b.name}" for s in new}, evidence_release={s: "B" for s in new},
                    detail={"duplicated_ids": new})]
 

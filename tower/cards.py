@@ -23,7 +23,7 @@ def load_card(path_or_id: str) -> dict:
         p = CARDS_DIR / f"{path_or_id}.yaml"
     if not p.exists():
         raise FileNotFoundError(f"no card '{path_or_id}' (looked for {p}); see `python -m tower cards`")
-    card = yaml.safe_load(p.read_text())
+    card = yaml.safe_load(p.read_text(encoding="utf-8"))
     missing = [k for k in REQUIRED if k not in card]
     if missing:
         raise ValueError(f"card {p.name} is missing {', '.join(missing)}")

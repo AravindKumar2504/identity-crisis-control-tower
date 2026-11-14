@@ -10,6 +10,11 @@ import copy
 import datetime as _dt
 import hashlib
 import json
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
 
 REPAIR_CHOICES = ["approve", "reject", "request_more_evidence"]
 ISSUE_CHOICES = ["agree", "disagree", "need more evidence"]
@@ -79,3 +84,51 @@ def record_markdown(readiness_doc: dict, findings_doc: dict | None) -> str:
         lines.append(f"- readiness.json digest: `{so['inputs'].get('readiness')}`")
     lines += ["", readiness_doc["disclaimer"]]
     return "\n".join(lines) + "\n"
+
+
+class NotSaved(Exception):
+    """The validator rejected the review; nothing was written."""
+
+
+def write_atomic(path: pathlib.Path, text: str) -> None:
+    """Write to a temporary file, then move it into place."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def validate(doc: dict, validator: pathlib.Path) -> tuple[bool | None, str]:
+    """Run the organizers' validator: (True, ""), (False, its message), or (None, why) if it isn't there."""
+    if not validator.exists():
+        return None, "the organizers' validator wasn't found"
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "findings.reviewed.json"
+        path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(validator), str(path)], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        said = (r.stdout or r.stderr or "").replace(str(path), "findings.reviewed.json").strip()
+    if r.returncode == 0:
+        return True, ""
+    return False, said or f"it stopped with exit code {r.returncode}"
+
+
+def save(out_dir: pathlib.Path, signed_doc: dict, reviewed: dict | None, findings_doc: dict | None,
+         validator: pathlib.Path) -> str:
+    """Validate the reviewed findings, then write the review files. Raises NotSaved if rejected."""
+    check = ""
+    if reviewed is not None:
+        ok, said = validate(reviewed, validator)
+        if ok is False:
+            raise NotSaved(f"the organizers' validator rejected findings.reviewed.json: {said}")
+        check = ("Organizers' validator on findings.reviewed.json: valid" if ok
+                 else f"findings.reviewed.json was not checked: {said}")
+    record = record_markdown(signed_doc, findings_doc)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_atomic(out_dir / "readiness.signed.json", json.dumps(signed_doc, indent=2, default=str))
+    write_atomic(out_dir / "review_record.md", record)
+    if reviewed is not None:
+        write_atomic(out_dir / "findings.reviewed.json", json.dumps(reviewed, indent=2))
+    return check

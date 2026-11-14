@@ -6,9 +6,22 @@ Severity follows the organizers' rule: how much the change could alter the resea
 """
 from __future__ import annotations
 
+import math
+
 from .analyses import ANALYSES
 from .diff import Comparison
 from .robustness import effects
+
+
+def finite(x):
+    """Replace NaN and infinity with None: they are not valid JSON."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
 
 LIMITS = {
     "sample_swap": "Fingerprints prove the profiles moved between ids; they cannot say which release labels them "
@@ -20,7 +33,7 @@ LIMITS = {
     "label_conflict": "A changed value can be a legitimate correction; the tool cannot see the pathology report "
                       "behind it.",
     "missing_data": "The tool sees values become empty, not why they were withdrawn.",
-    "join_inflation": "The tool sees that a sample id sits on more than one row, not which row is the real one.",
+    "join_inflation": "The tool sees that a sample id sits on more than one row or column, not which one is the real one.",
     "other": "The tool could not classify this change, so it reports it without guessing its cause.",
 }
 
@@ -171,7 +184,7 @@ def build(cmp: Comparison, results: dict, impact: dict, team: str = "Identity_Cr
         analyses.append(item)
 
     verdict, verdict_reason = decide(cmp, results, findings, ids)
-    return {
+    return finite({
         "format_version": "0.2",
         "producer": {"team": team, "product": "Cohort Control Tower", "track": "cohort-firewall"},
         "data": {"dataset": "TCGA-BRCA (UCSC Xena hub, event frozen release)",
@@ -186,7 +199,7 @@ def build(cmp: Comparison, results: dict, impact: dict, team: str = "Identity_Cr
         "findings": findings,
         "analyses": analyses,
         "repairs": repairs,
-    }
+    })
 
 
 def decide(cmp, results, findings, ids) -> tuple[str, str]:

@@ -11,7 +11,7 @@ from typing import Callable
 import pandas as pd
 
 from .diff import Change
-from .release import Release, sample_type
+from .release import Release, header_ids, repeated, sample_type
 
 ER = "breast_carcinoma_estrogen_receptor_status"
 PAM50 = "PAM50Call_RNAseq"
@@ -35,9 +35,16 @@ def run_a1(rel: Release) -> dict:
     samples = [s for s in protein.columns if sample_type(str(s)) == "01" and er.get(s) in ("Positive", "Negative")]
     if "ERALPHA" not in protein.index or not samples:
         raise ValueError("A1 cannot run: the ERALPHA row or the ER-labelled primary tumors are missing")
+    if int((protein.index == "ERALPHA").sum()) > 1:
+        raise ValueError("A1 cannot run: the protein file has more than one ERALPHA row")
     vals = protein.loc["ERALPHA", samples]
     groups = {k: vals[[s for s in samples if er[s] == k]] for k in ("Positive", "Negative")}
+    empty = [k for k, g in groups.items() if int(g.count()) == 0]
+    if empty:
+        raise ValueError("A1 cannot run: no ER-alpha value for the ER-" + " or ER-".join(k.lower() for k in empty)
+                         + " primary tumors")
     return {"n_samples": len(samples), "sample_ids": sorted(samples),
+            "repeated_ids": sorted(set(repeated(header_ids(rel.path / "protein_rppa.tsv.gz"))) & set(samples)),
             "n_positive": int(groups["Positive"].size), "n_negative": int(groups["Negative"].size),
             "mean_positive": round(float(groups["Positive"].mean()), 3),
             "mean_negative": round(float(groups["Negative"].mean()), 3),
@@ -51,6 +58,7 @@ def run_a2(rel: Release) -> dict:
     if counts.sum() == 0:
         raise ValueError("A2 cannot run: no primary tumor has a subtype call")
     return {"n_samples": int(counts.sum()), "sample_ids": sorted(c.sampleID),
+            "repeated_ids": sorted(set(c.sampleID[c.sampleID.duplicated()])),
             "counts": {k: int(v) for k, v in counts.items()},
             "percent": {k: round(100 * v / counts.sum(), 1) for k, v in counts.items()}}
 
@@ -87,6 +95,9 @@ def touches(change: Change, an: Analysis, pop_a: set[str], pop_b: set[str], a: R
         lost_rows = set(change.detail.get("rows_removed", [])) | set(change.detail.get("columns_removed", []))
         if lost_rows & set(an.reads[change.file]):
             return True, f"{an.id} reads {', '.join(sorted(lost_rows & set(an.reads[change.file])))}, which was removed"
+        repeated = {x.split("#")[0] for x in change.detail.get("rows_added", []) if "#" in x} & set(an.reads[change.file])
+        if repeated:
+            return True, f"{an.id} reads {', '.join(sorted(repeated))}, which now appears on more than one row"
         return False, f"{an.id} does not read the rows or columns that changed"
     hit = sorted(set(change.samples) & (pop_a | pop_b))
     if not hit:
@@ -131,6 +142,13 @@ def rerun(a: Release, b: Release, changes: list[Change], selected: list[str] | N
         try:
             after = an.run(b)
             pop_b = set(after["sample_ids"])
+            twice = sorted(set(after.get("repeated_ids", [])) - set(before.get("repeated_ids", [])))
+            if twice:
+                where = "clinical row" if an.id == "A2" else "column of the protein file"
+                raise ValueError(f"{len(twice)} sample id{'' if len(twice) == 1 else 's'} in {an.id}'s group "
+                                 f"{'is' if len(twice) == 1 else 'are'} on more than one {where} "
+                                 f"({', '.join(twice[:3])}), so the result would count a sample twice or pick one "
+                                 "of its profiles at random")
         except Exception as e:
             after, pop_b = None, set()
             results[an.id] = {"status": "not_rerun", "before": _public(before), "after": None,
@@ -157,4 +175,4 @@ def rerun(a: Release, b: Release, changes: list[Change], selected: list[str] | N
 def _public(r: dict | None) -> dict | None:
     if r is None:
         return None
-    return {k: v for k, v in r.items() if k != "sample_ids"}
+    return {k: v for k, v in r.items() if k not in ("sample_ids", "repeated_ids")}

@@ -15,9 +15,9 @@ import sys
 import time
 
 from .analyses import rerun
-from .diff import compare
+from .diff import compare, file_summary
 from .findings import build
-from .release import load_release
+from .release import UnreadableFile, load_release
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -39,8 +39,8 @@ def run_compare(dir_a, dir_b, out: pathlib.Path, analyses=None, name_a=None, nam
     results, impact = rerun(a, b, cmp.changes, analyses)
     doc = build(cmp, results, impact, selected=analyses)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(doc, indent=2))
-    (out.parent / "report.md").write_text(plain_report(doc))
+    out.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    (out.parent / "report.md").write_text(plain_report(doc, file_summary(cmp)), encoding="utf-8")
     elapsed = time.time() - t0
     if not quiet:
         print_summary(doc, out, elapsed)
@@ -78,7 +78,7 @@ def print_summary(doc: dict, out: pathlib.Path, elapsed: float) -> None:
     print(f"Wrote {out} and {out.parent / 'report.md'} in {elapsed:.1f} s")
 
 
-def plain_report(doc: dict) -> str:
+def plain_report(doc: dict, files: list[dict] | None = None) -> str:
     lines = [f"# Release check: {doc['data']['releases'][1]['name']} against {doc['data']['releases'][0]['name']}", "",
              f"**Question:** {doc['question']}", "", f"**Verdict: {doc['verdict']}.** {doc['verdict_reason']}", "",
              "Research use only. This report makes no clinical claim. A person must review every finding.", "",
@@ -92,6 +92,17 @@ def plain_report(doc: dict) -> str:
         lines += [f"- {e['kind']} `{e['id']}` ({e.get('file', '')}, release {e.get('release', '')}): {e.get('note', '')}"
                   for e in f["evidence"]]
         lines.append("")
+    if files:
+        lines += ["## File by file", "", "| File | Samples in release A | Identical | Changed | Missing | New | Note |",
+                  "|---|---|---|---|---|---|---|"]
+        for r in files:
+            same = "" if r["identical"] is None else f"{r['identical']} of {r['in_release_a']}"
+            cells = ["" if r[k] is None else str(r[k]) for k in ("changed", "missing", "new")]
+            note = "; ".join(x for x in (r["status"] if r["status"] != "compared" else "", r["structure"]) if x)
+            lines.append(f"| {r['file']} | {'' if r['in_release_a'] is None else r['in_release_a']} | {same} | "
+                         + " | ".join(cells) + f" | {note} |")
+        lines += ["", "Identical means the sample holds the same values in both releases (same fingerprint). These are "
+                  "counts per file, not a score, and they don't show that a sample's files belong to the same patient.", ""]
     lines += ["## Analyses", ""]
     for a in doc["analyses"]:
         lines += [f"- **{a['id']}** ({a['title']}): {a['status']}. {a.get('reason', '')}",
@@ -120,8 +131,8 @@ def run_check(card_ref: str, release_dir, against_dir=None, out: pathlib.Path | 
     doc = assess(card, rel, cmp, results, allow_missing=allow_missing)
     out = out or pathlib.Path("out") / "readiness" / f"{card['id']}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(doc, indent=2, default=str))
-    out.with_suffix(".md").write_text(markdown(doc))
+    out.write_text(json.dumps(doc, indent=2, default=str), encoding="utf-8")
+    out.with_suffix(".md").write_text(markdown(doc), encoding="utf-8")
     if not quiet:
         print(f"\n{card['title']}\n  Verdict: {doc['verdict']}")
         for r in doc["reasons"]:
@@ -164,6 +175,15 @@ def main(argv=None) -> None:
     d = sub.add_parser("doctor", help="check this machine is ready for the sealed envelope (runs the practice envelope)")
     d.add_argument("--challenge"), d.add_argument("--full", action="store_true", help="also run the scorecard")
     args = p.parse_args(argv)
+    try:
+        _run(args)
+    except (FileNotFoundError, NotADirectoryError, UnreadableFile) as e:
+        if os.environ.get("TOWER_DEBUG"):
+            raise
+        sys.exit(f"Stopped: {e}")
+
+
+def _run(args) -> None:
     sel = args.analyses.split(",") if getattr(args, "analyses", None) else None
 
     if args.cmd == "doctor":
