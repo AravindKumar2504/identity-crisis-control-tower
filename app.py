@@ -939,6 +939,13 @@ def render_analyses() -> None:
                 k3.metric("Release A", rob["release_a_difference"])
                 if rob["flagged_samples"]:
                     k4.metric(f"Without the {rob['flagged_samples']} flagged samples", rob["difference_without_flagged"])
+            loo = next(((x.get("numbers") or {}).get("leave_one_site_out") for x in ready["issues"]
+                        if x["id"] == "site_shift" and (x.get("numbers") or {}).get("leave_one_site_out")), None)
+            if loo:
+                st.caption(f"With each of the {len(loo['sites'])} largest hospitals left out in turn, the difference is "
+                           f"{loo['lowest']} to {loo['highest']}"
+                           + ("; it holds every time." if loo["holds_everywhere"] else
+                              "; it doesn't hold every time (see site_shift under Checks and reasons)."))
             how = rob.get("range_method") or {}
             st.caption("Holds if the difference stays positive and its 95% range stays above zero. The range covers "
                        "sampling variation only, not systematic errors such as a mislabelled ER test."
