@@ -171,7 +171,10 @@ def assess(card: dict, release: Release, cmp: Comparison | None = None, results:
                     analyses[an.id] = {"status": "not_run", "reason": str(e)}
 
     next_steps = [{"for": x.id, "step": x.next_step, "evidence_needed": x.evidence_needed}
-                  for x in deciding if x.next_step or x.evidence_needed]
+                  for x in deciding if x.next_step]
+    if not next_steps:                        # no check named an action: say what evidence would settle it
+        next_steps = [{"for": x.id, "step": "Get " + x.evidence_needed[:1].lower() + x.evidence_needed[1:],
+                       "evidence_needed": x.evidence_needed} for x in deciding if x.evidence_needed]
     if verdict == "Conditional":
         next_steps += [_touch_step(t) for t in touching]
     review_items = list(dict.fromkeys([x.id for x in material if x.status != "pass"] + [t["finding"] for t in touching]))
