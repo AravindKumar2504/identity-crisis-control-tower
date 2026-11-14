@@ -528,6 +528,34 @@ def headline() -> str:
     return ready["reasons"][0] if ready["reasons"] else ""
 
 
+def budget_plain(eb: dict) -> str:
+    """The error budget in plain words, from the same numbers as tower/budget.py's headline."""
+    def name(error: str, n: int) -> str:
+        m = re.fullmatch(r"(\w+) tumors relabelled (\w+)", error)
+        if m:
+            a, b = SUBTYPES.get(m[1], m[1]), SUBTYPES.get(m[2], m[2])
+            return f"{a} {'tumor' if n == 1 else 'tumors'} relabelled as {b}"
+        one, many = {"swaps between ER groups": ("sample swapped between ER-positive and ER-negative tumors",
+                                                 "samples swapped between ER-positive and ER-negative tumors"),
+                     "wrong ER labels": ("wrong ER label", "wrong ER labels"),
+                     "copied profiles": ("copied sample", "copied samples")}.get(error, (error, error))
+        return one if n == 1 else many
+
+    items = eb["items"]
+    if all(it["this_release"] is None for it in items):          # release A on its own: no release to count
+        holds = [f"{it['survives']} {name(it['error'], it['survives'])}" for it in items]
+        joined = holds[0] if len(holds) == 1 else ", ".join(holds[:-1]) + " or " + holds[-1]
+        return f"The answer would still hold with up to {joined}."
+    spent = [it for it in items if it["this_release"] and it["survives"]]
+    if not spent:
+        it = items[0]
+        return (f"This release has none of these errors. The answer would still hold with up to {it['survives']} "
+                f"{name(it['error'], it['survives'])}.")
+    it = max(spent, key=lambda x: x["this_release"] / x["survives"])
+    return (f"This release has {it['this_release']} {name(it['error'], it['this_release'])}. "
+            f"The answer would still hold with up to {it['survives']}.")
+
+
 def board_help(q: dict) -> str:
     """Hover help for a question-board button: what the question asks, then why it got its verdict."""
     asks = QUESTION_PLAIN.get(q["id"]) or q["title"]
@@ -563,7 +591,7 @@ def page_overview() -> None:
         f'<div class="ct-step {s}" title="{esc(KPI_HELP[k])}"><div class="k">{esc(k)}</div><div class="v">{esc(v)}</div><div class="s">{esc(sub)}</div></div>'
         for k, v, sub, s in kpis) + "</div>", unsafe_allow_html=True)
     if ready.get("error_budget"):
-        st.markdown(f'<div class="ct-budget" title="{esc(SECTION_HELP["budget"])}"><b>Error budget.</b> {esc(ready["error_budget"]["headline"])}</div>',
+        st.markdown(f'<div class="ct-budget" title="{esc(SECTION_HELP["budget"])}"><b>Error budget.</b> {esc(budget_plain(ready["error_budget"]))}</div>',
                     unsafe_allow_html=True)
 
     st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["board"])}">Same release, every question: the verdict depends '
@@ -575,8 +603,11 @@ def page_overview() -> None:
         with qcols[i % 4]:
             st.button(q["short"], key=f"pick|{q['id']}", on_click=pick, args=(q["title"],),
                       type="primary" if q["id"] == card["id"] else "secondary", help=board_help(q), width="stretch")
-            st.caption(q["verdict"] + (f" · {plural(q['pending'], 'check')} not built" if q.get("pending") else "")
-                       + (" · shown above" if q["id"] == card["id"] else ""))
+            extra = ([f"{plural(q['pending'], 'check')} not built"] if q.get("pending") else []) + \
+                    (["shown above"] if q["id"] == card["id"] else [])
+            st.markdown(chip(q["verdict"], VERDICT[q["verdict"]][3] + " flat", VERDICT_HELP[q["verdict"]])
+                        + (f'<span class="ct-small">{esc(" · ".join(extra))}</span>' if extra else ""),
+                        unsafe_allow_html=True)
 
     nxt, cant = st.columns(2, gap="medium")
     with nxt:
@@ -785,7 +816,7 @@ def render_analyses() -> None:
                 col.metric(f"Worst-case {it['error']} it survives", it["survives"],
                            delta=None if it["this_release"] is None else f"this release: {it['this_release']}",
                            delta_color="off")
-            st.markdown(f"**{eb['headline']}**")
+            st.markdown(f"**{budget_plain(eb)}**")
             st.caption(eb["method"])
     if items:
         ref = reference_numbers(b_path or str(RAW))
