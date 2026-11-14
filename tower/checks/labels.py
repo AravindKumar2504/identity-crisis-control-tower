@@ -22,6 +22,31 @@ RNA, NAT = "PAM50Call_RNAseq", "PAM50_mRNA_nature2012"
 IHC, FINAL = "lab_proc_her2_neu_immunohistochemistry_receptor_status", "HER2_Final_Status_nature2012"
 DEFAULT_SUBTYPE_LIMIT = 0.05
 
+# Plain names for the columns, for text a non-specialist reads: (plain name, plain name with the raw column).
+# The raw column goes in brackets on its first mention in each title, next step or limitation.
+COLUMN_NAMES = {
+    RNA: ("the PAM50 subtype call from RNA sequencing", f"the PAM50 subtype call from RNA sequencing ({RNA})"),
+    NAT: ("the PAM50 subtype call from the 2012 TCGA study",
+          f"the PAM50 subtype call from the 2012 TCGA study ({NAT})"),
+    IHC: ("the HER2 protein test result (IHC)", f"the HER2 protein test result (IHC; {IHC})"),
+    FINAL: ("the final HER2 status from the 2012 study",
+            f"the final HER2 status from the 2012 study ({FINAL}), which also uses a FISH test"),
+}
+
+
+def plain_name(col: str, names: dict | None = None) -> str:
+    """The plain name of a column, or the raw column when it has none."""
+    return (names or COLUMN_NAMES).get(col, (col, col))[0]
+
+
+def named(col: str, names: dict | None = None) -> str:
+    """The plain name with the raw column in brackets (for a first mention), or the raw column when it has none."""
+    return (names or COLUMN_NAMES).get(col, (col, col))[1]
+
+
+def cap(s: str) -> str:
+    return s[:1].upper() + s[1:]
+
 
 def _blank(v) -> bool:
     return str(v).strip() in BLANKS
@@ -41,18 +66,19 @@ def _load(release, card, name: str, columns: list[str]):
             material=True, pre_existing=False, fields=fields,
             rule="This check can only be judged from a readable clinical.tsv.", source=TCGA_2012,
             limitation="Without the clinical file the tool can't see either field.",
-            next_step="Get a release with a readable clinical.tsv.",
+            next_step="Get a release with a readable clinical file (clinical.tsv).",
             evidence_needed="A release containing clinical.tsv, matching its published fingerprint.")
     cl = release.table(CL).frame
     missing = [c for c in columns if c not in cl.columns]
     if missing:
         what = ", ".join(f"{CL}:{c}" for c in missing)
+        plain = " or ".join(plain_name(c) for c in missing)
         return None, None, Issue(
-            id=name, title=f"The clinical file has no {what} column, so this can't be checked", status="unknown",
+            id=name, title=f"The clinical file has no column for {plain}, so this can't be checked", status="unknown",
             material=True, pre_existing=False, fields=fields, numbers={"missing_fields": missing},
             rule="This check compares two fields, so both must exist.", source=TCGA_2012,
             limitation="Without both fields the tool can't tell whether they agree.",
-            next_step=f"Get a release whose clinical.tsv includes {what}.",
+            next_step=f"Get a release whose clinical file includes {' and '.join(named(c) for c in missing)}.",
             evidence_needed=f"A release with {what}.")
     group = sorted(card_group(release, card))
     if not group:
@@ -104,9 +130,9 @@ def subtype_columns_disagree(release, card):
                        f"above {lim_pct} (limits.subtype_disagreement; {limit_from}). The RNA-seq codes are mapped "
                        "first: LumA to Luminal A, LumB to Luminal B, Basal to Basal-like, Her2 to HER2-enriched, "
                        "Normal to Normal-like.",
-                  limitation=f"Only tumors with both calls can be compared ({len(compared)} of {len(group)} here), and "
-                             f"{NAT} covers only tumors in the 2012 study. Neither column is a ground truth, so the "
-                             "tool can't say which call is right.")
+                  limitation=f"Only tumors with both calls can be compared ({len(compared)} of {len(group)} here). "
+                             f"{cap(named(NAT))} covers only tumors in that study. Neither call is a ground truth, so "
+                             "the tool can't say which one is right.")
     if share <= limit:
         return [Issue(title=f"The two subtype columns disagree for {len(differ)} of {len(compared)} tumors ({pct}), "
                             f"within the {lim_pct} limit",
@@ -114,8 +140,8 @@ def subtype_columns_disagree(release, card):
     return [Issue(title=f"The two subtype columns disagree for {len(differ)} of {len(compared)} tumors ({pct}), "
                         f"above the {lim_pct} limit",
                   status="warn", material=True,
-                  next_step=f"Name the subtype column used, and report the result under both {RNA} and {NAT}."
-                            + focus_txt,
+                  next_step=f"Name the subtype column used, and report the result under both {named(RNA)} and "
+                            f"{named(NAT)}." + focus_txt,
                   evidence_needed="A documented reason to prefer one subtype column, or a result that holds under "
                                   "both.",
                   **common)]
@@ -155,18 +181,19 @@ def her2_field_conflict(release, card):
                   rule=f"Warn if any tumor is Positive in one HER2 field and Negative in the other, among tumors with "
                        "both fields filled. Differences where the protein stain was Equivocal are expected: the final "
                        "status settles those with a FISH test.",
-                  limitation=f"The tool can't tell which field is right for a given tumor. {FINAL} exists only for "
-                             "tumors in the 2012 study, and tumors with only one field filled can't be checked.")
+                  limitation=f"The tool can't tell which of the two HER2 results is right for a given tumor. "
+                             f"{cap(named(FINAL))}, exists only for tumors in that study. Tumors with only one of the "
+                             "two results filled can't be checked.")
     if not pos_neg:
-        return [Issue(title=f"No tumor is HER2-positive in one field and negative in the other ({len(differ)} of "
+        return [Issue(title=f"No tumor is HER2-positive by one test and HER2-negative by the other ({len(differ)} of "
                             f"{len(both)} differ in other ways, such as an equivocal stain settled by FISH)",
                       status="pass", material=True, **common)]
     n = len(pos_neg)
-    return [Issue(title=f"{_plural(n, 'tumor is', 'tumors are')} HER2-positive in one HER2 field and negative in the "
+    return [Issue(title=f"{_plural(n, 'tumor is', 'tumors are')} HER2-positive by one test and HER2-negative by the "
                         f"other ({len(differ)} of {len(both)} differ in total)",
                   status="warn", material=True,
-                  next_step=f"Define HER2 status from {FINAL} (it includes the FISH test), and report the {n} "
-                            f"conflicting {'tumor' if n == 1 else 'tumors'} (listed in the evidence).",
+                  next_step=f"Use {named(FINAL)}, to define HER2 status, and report the {n} conflicting "
+                            f"{'tumor' if n == 1 else 'tumors'} (listed in the evidence).",
                   evidence_needed=f"A confirmed HER2 status (for example a FISH result) for the "
                                   f"{_plural(n, 'conflicting tumor', 'conflicting tumors')}.",
                   **common)]

@@ -59,6 +59,38 @@ A_ONLY = "Release A only (no new release)"
 # The sign-off decision starts from what the tool found; a person can change it, with a reason if they overrule it.
 DEFAULT_SIGNOFF = {"Ready": "Approve use as stated", "Conditional": "Approve with the conditions listed",
                    "Blocked": "Do not use", "Insufficient Evidence": "Request more evidence"}
+# Plain one-sentence meanings for the terms the screen uses (the Overview's glossary and the help tooltips).
+GLOSSARY = {
+    "TCGA": "The Cancer Genome Atlas, a public research project; this tool checks its breast cancer data.",
+    "Release": "One version of the data files. Release A is the reference, and each new release is compared "
+               "against it.",
+    "Fingerprint": "A short code computed from a sample's data. If the data changes, the code changes, so matching "
+                   "codes mean matching data.",
+    "Primary tumor": "The tumor where the cancer started (TCGA sample type 01), as opposed to a metastasis or normal "
+                     "tissue.",
+    "Redacted": "A survival record the data provider flagged in its Redaction column; the tool keeps it but asks a "
+                "person to review it before use.",
+    "OS": "Overall survival, the time from diagnosis to death from any cause or to the last follow-up.",
+    "PFI": "Progression-free interval, the time until the disease is recorded as progressing or returning, or to the "
+           "last follow-up.",
+    "ER": "Estrogen receptor, a lab result recording whether tumor cells carry this hormone receptor (positive or "
+          "negative).",
+    "ER-alpha": "The estrogen receptor measured as a protein level, a number rather than positive or negative.",
+    "HER2": "A protein on the cell surface, recorded as positive, negative or equivocal from lab tests.",
+    "IHC": "Immunohistochemistry, a tissue stain that shows how much of a protein is present. \"Equivocal\" means "
+           "unclear.",
+    "FISH": "A lab test that counts copies of a gene. Here it settles HER2 results the stain left unclear.",
+    "RPPA": "Reverse-phase protein array, the lab method behind the protein data file; it measures the level of many "
+            "proteins in each sample.",
+    "PAM50": "A method that sorts breast tumors into five subtypes using 50 genes.",
+    "Luminal A / Luminal B": "Two of the five PAM50 subtype labels. The others are HER2-enriched, Basal-like and "
+                             "Normal-like.",
+    "A1": "The protected analysis comparing average ER-alpha protein between ER-positive and ER-negative tumors.",
+    "A2": "The protected analysis counting the share of each PAM50 subtype.",
+}
+OUTCOME_HELP = (f"OS: {GLOSSARY['OS']} PFI: {GLOSSARY['PFI']} DSS: disease-specific survival, the time to death from "
+                "the cancer itself or to the last follow-up. DFI: disease-free interval, the time until the disease "
+                "returns after treatment left no sign of it, or to the last follow-up.")
 
 st.markdown("""
 <style>
@@ -322,12 +354,13 @@ with st.sidebar:
         kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
                                                  "Response to a treatment"], key="q_kind")
         if kind == "Survival by subtype":
-            ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep")
+            ep = st.selectbox("Outcome", list(ENDPOINTS), format_func=lambda k: ENDPOINTS[k], key="q_ep",
+                              help=OUTCOME_HELP)
             focus = st.selectbox("Subtype to focus on", ["", *SUBTYPES], key="q_focus",
                                  format_func=lambda k: SUBTYPES.get(k, "none (all subtypes)"))
             new = survival_question(ep, focus or None)
         elif kind == "A protein between groups":
-            prot = st.selectbox("Protein (RPPA)", protein_rows(), key="q_prot")
+            prot = st.selectbox("Protein (RPPA)", protein_rows(), key="q_prot", help=f"RPPA: {GLOSSARY['RPPA']}")
             grp = st.selectbox("Groups to compare", list(GROUPINGS), format_func=lambda k: GROUPINGS[k][0], key="q_grp")
             new = protein_question(prot, grp)
         elif kind == "A prediction model":
@@ -505,7 +538,7 @@ def page_overview() -> None:
         st.markdown(f"""
 <div class="ct-qcard">
   <div class="row"><span class="lab">Intended use</span>{esc(card['intended_use'])}</div>
-  <div class="row"><span class="lab">Group studied</span>{esc(card['group_studied'])}</div>
+  <div class="row"><span class="lab" title="Primary tumor: {esc(GLOSSARY['Primary tumor'])}">Group studied</span>{esc(card['group_studied'])}</div>
   <div class="row"><span class="lab">Outcome</span>{esc(card['outcome'])}</div>
   <div class="row"><span class="lab">Acceptable limitations</span>{esc(card['acceptable_limitations'])}</div>
 </div>""", unsafe_allow_html=True)
@@ -514,6 +547,8 @@ def page_overview() -> None:
                                "sample_id,patient_id\n" + "".join(f"{s},{s[:12]}\n" for s in ready["group_samples"]),
                                f"{card['id']}-samples.csv", help="The samples in this release that can answer the "
                                "question, after the question's own filters: which samples the verdict is about.")
+    with st.expander("What these terms mean"):
+        st.markdown("\n".join(f"- **{term}:** {meaning}" for term, meaning in GLOSSARY.items()))
 
 
 # ------------------------------------------------------------------------------------------------ why
@@ -662,7 +697,7 @@ def render_analyses() -> None:
             st.markdown('<div class="ct-eyebrow">Does the conclusion still hold?</div>' + chip(lab, cls)
                         + f'<span class="ct-small">{esc(rob["claim"])}</span>', unsafe_allow_html=True)
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("ER+ minus ER- difference", rob["difference"],
+            k1.metric("ER+ minus ER- difference", rob["difference"], help=f"A1: {GLOSSARY['A1']} ER-alpha: {GLOSSARY['ER-alpha']}",
                       delta=round(rob["difference"] - rob["release_a_difference"], 3) if rob.get("release_a_difference") is not None else None)
             k2.metric("95% range (1,000 resamples)", f"{rob['range_95'][0]} to {rob['range_95'][1]}")
             if rob.get("release_a_difference") is not None:
@@ -722,12 +757,14 @@ def render_analyses() -> None:
             if aid == "A1" and before.get("mean_positive") is not None:
                 c1, c2 = st.columns([1, 2])
                 c1.metric("ER+ minus ER- difference", after["difference"] if after else before["difference"],
+                          help=f"A1: {GLOSSARY['A1']} ER-alpha: {GLOSSARY['ER-alpha']}",
                           delta=round(after["difference"] - before["difference"], 3) if after else None)
                 c1.metric("Samples", after["n_samples"] if after else before["n_samples"],
                           delta=(after["n_samples"] - before["n_samples"]) if after else None)
                 c2.altair_chart(a1_chart(before, after))
             elif aid == "A2" and before.get("percent"):
                 st.altair_chart(a2_chart(before, after))
+                st.caption(f"A2: {GLOSSARY['A2']} PAM50: {GLOSSARY['PAM50']}")
             if findings:
                 a = next(x for x in findings["analyses"] if x["id"] == aid)
                 if a.get("samples_entered") or a.get("samples_left"):
@@ -788,7 +825,9 @@ def render_trail() -> None:
     st.dataframe(pd.DataFrame([{"Conclusion": e["conclusion"], "Status": e["status"], "Rule": e["rule"],
                                 "Source": e["source"], "Fields": ", ".join(e["fields"]), "Samples": e["row_count"],
                                 "File fingerprints": "; ".join(f"{k}: {(v or '')[:12]}" for k, v in e["files"].items())}
-                               for e in ready["lineage"]]), hide_index=True, width="stretch")
+                               for e in ready["lineage"]]), hide_index=True, width="stretch",
+                 column_config={"File fingerprints": st.column_config.TextColumn(
+                     "File fingerprints", help=f"Fingerprint: {GLOSSARY['Fingerprint']}")})
     st.caption("Fields this question reads: " + ", ".join(ready["fields_read"]))
 
 # ------------------------------------------------------------------------------------------------ review

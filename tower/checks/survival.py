@@ -30,6 +30,20 @@ def _plural(n: int, one: str, many: str) -> str:
     return f"{n} {one if n == 1 else many}"
 
 
+def _plain(col: str) -> str:
+    """A survival column's plain name (used in titles), or the raw column when it has none."""
+    base, timed = (col[:-5], True) if col.endswith(".time") else (col, False)
+    if base in ENDPOINTS:
+        return f"the follow-up time for {ENDPOINTS[base]}" if timed else f"the {ENDPOINTS[base]} event marker"
+    return {"Redaction": "the redaction marker", "_PATIENT": "the patient ID"}.get(col, col)
+
+
+def _named(col: str) -> str:
+    """The plain name with the raw column in brackets (used in next steps and limitations)."""
+    plain = _plain(col)
+    return f"{plain} ({col})" if plain != col else col
+
+
 def _load(release, card, name: str, columns: list[str]):
     """The survival table and the card's group within it, or an 'unknown' Issue explaining why it can't be judged."""
     fields = [f"{SV}:{c}" for c in columns]
@@ -40,18 +54,19 @@ def _load(release, card, name: str, columns: list[str]):
             material=True, pre_existing=False, fields=fields,
             rule="This check can only be judged from a readable survival.tsv.", source=CDR,
             limitation="Without the survival file the tool can't see any survival record.",
-            next_step="Get a release with a readable survival.tsv.",
+            next_step="Get a release with a readable survival file (survival.tsv).",
             evidence_needed="A release containing survival.tsv, matching its published fingerprint.")
     sv = release.table(SV).frame
     missing = [c for c in columns if c not in sv.columns]
     if missing:
         what = ", ".join(f"{SV}:{c}" for c in missing)
+        plain = " or ".join(_plain(c) for c in missing)
         return None, None, Issue(
-            id=name, title=f"The survival file has no {what} column, so this can't be checked", status="unknown",
+            id=name, title=f"The survival file has no column for {plain}, so this can't be checked", status="unknown",
             material=True, pre_existing=False, fields=fields, numbers={"missing_fields": missing},
             rule="This check needs every column it reads to exist.", source=CDR,
             limitation="Without the column the tool can't see this part of the survival records.",
-            next_step=f"Get a release whose survival.tsv includes {what}.",
+            next_step=f"Get a release whose survival file includes {' and '.join(_named(c) for c in missing)}.",
             evidence_needed=f"A release with {what}.")
     group = sorted(card_group(release, card) & set(sv.index))
     if not group:
@@ -60,7 +75,8 @@ def _load(release, card, name: str, columns: list[str]):
             status="unknown", material=True, pre_existing=False, fields=fields, numbers={"group_samples": 0},
             rule="This check needs the question's group to have survival records.", source=CDR,
             limitation="The group may be empty because the clinical file is missing or the group's columns are absent.",
-            next_step="Check that clinical.tsv and survival.tsv are both present and readable.",
+            next_step="Check that the clinical file (clinical.tsv) and the survival file (survival.tsv) are both "
+                      "present and readable.",
             evidence_needed="A release where the question's group has survival records.")
     return sv, group, None
 
@@ -91,8 +107,8 @@ def survival_redacted(release, card):
     common = dict(id=name, pre_existing=True, fields=[f"{SV}:Redaction"], rows=red, numbers=numbers,
                   source=f"{CDR}; {RULING}",
                   rule="Warn if any sample in the question's group has a value in survival.tsv Redaction.",
-                  limitation="The file doesn't say why a record was redacted, and a record with the same problem that "
-                             "wasn't marked can't be seen here.")
+                  limitation="The survival file doesn't say why a record was redacted. A record with the same problem "
+                             "that wasn't marked can't be seen here.")
     if not red:
         return [Issue(title="No survival record in this group is marked as redacted", status="pass", material=True,
                       **common)]
@@ -132,8 +148,9 @@ def survival_zero_time(release, card):
                   source=CDR,
                   rule=f"Warn if any sample in the question's group has {tcol} equal to 0: a record with no follow-up "
                        "time adds nothing to a time-to-event comparison and may be a placeholder.",
-                  limitation="It sees only times of exactly 0; a time that is wrong but not 0 can't be detected here. "
-                             "Blank times are counted in the numbers but don't trigger the warning.")
+                  limitation=f"It sees only follow-up times of exactly 0 in {_named(tcol)}. A time that is wrong but "
+                             "not 0 can't be detected here. Blank times are counted in the numbers but don't trigger "
+                             "the warning.")
     if not zero:
         return [Issue(title=f"No sample in this group has a follow-up time of 0 for {label}", status="pass",
                       material=True, **common)]
@@ -186,8 +203,8 @@ def patient_double_count(release, card):
     common = dict(id=name, pre_existing=True, fields=fields, numbers=numbers, source=CDR,
                   rule="Warn if any patient has more than one sample in the question's group: survival is a property "
                        "of the patient, so each patient must count once.",
-                  limitation="Patients are matched by their TCGA barcode, so one person recorded under two different "
-                             "barcodes can't be caught here.")
+                  limitation=f"Patients are matched by {_named('_PATIENT')}, the start of the TCGA barcode. One "
+                             "person recorded under two different IDs can't be caught here.")
     if not twice:
         extra = (f"; {_plural(len(identical), 'patient has', 'patients have')} identical survival rows on more than "
                  "one sample (tumor, normal or metastasis), which would count twice if those were included"
