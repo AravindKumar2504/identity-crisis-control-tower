@@ -145,6 +145,7 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `cards/` | Eight research-question cards |
 | `tower/cli.py` | `compare`, `envelope`, `cards` and `check` commands |
 | `tower/review.py` | Review decisions, the sign-off, and the exports |
+| `tower/ai_summary.py` | The optional AI summary: a language model puts one result into plain words, and every id it cites is checked |
 | `app.py` | The review screen (Streamlit): Overview, What changed, Evidence, Review and sign-off, Fool the Tower |
 | `.streamlit/config.toml` | The screen's light theme, and serving it on this machine only |
 | `tests/releases/` | Configs for the scorecard's test releases |
@@ -153,6 +154,24 @@ The answer keys (`CHANGES.json`) are written by the organizers' generator, not b
 | `scripts/try_check.py` | Runs one check for every card that lists it, on release A and the practice envelope, and flags contract problems |
 | `docs/` | Team plan, user research, contracts and the demo script |
 | `examples/practice/` | The tool's output on the organizers' practice envelope: `findings.json` (passes their validator) and the plain-English `report.md` |
+
+## AI summary (optional)
+
+The rules make every verdict; an AI model only explains it. On the Overview, **More about this result**, then **AI summary**, asks a language model to put the result into plain words. The model reads the tool's own results for the question shown (the verdict, the reasons, the next steps, what the tool can't tell, and the release changes that touch the question), never the raw data files. The screen then checks every finding and sample id it cites against those results, and flags any id the model wasn't given as one not to rely on.
+
+It runs on a local model by default, with no key and no internet. Start [Ollama](https://ollama.com) (`brew install ollama` on a Mac) in its own terminal:
+
+```bash
+ollama serve
+```
+
+and download the model once (about 5 GB):
+
+```bash
+ollama pull qwen3:8b
+```
+
+To use Claude instead, set your own key in the terminal before starting the screen (`export ANTHROPIC_API_KEY=...`); no key is stored in this repo. With neither, the box says how to start one, and everything else works as before. Its tests need no model: `python -m unittest tests.test_ai_summary`.
 
 ## Third-party code and licenses
 
@@ -170,6 +189,8 @@ No third-party code is copied into this repo, and it contains no third-party fon
 
 Versions are the ones installed when this list was made; `requirements.txt` sets minimums only.
 
+The optional AI summary uses only Python's standard library. Its local model runs in Ollama (MIT license), with the Qwen3 8B model (Apache-2.0); neither is in `requirements.txt`.
+
 ### Data sources and credits
 
 | Data | Source | License |
@@ -185,7 +206,7 @@ Versions are the ones installed when this list was made; `requirements.txt` sets
 
 No keys, tokens or private links are committed to this repo (.gitignore excludes .env, *.key and .streamlit/secrets.toml); a Gitleaks scan of the full history on Friday found none.
 
-No AI model or API key is used.
+The verdicts and findings use no AI model. The optional AI summary runs on a local model, or on Claude with a key the user supplies; no key is stored here.
 
 The data is de-identified but patient-derived: research use only. This tool makes no diagnosis, treatment recommendation, risk score or clinical claim, and every finding asks a person to review it.
 

@@ -101,7 +101,7 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 - **Why Blocked, not a warning?** Even with perfect files, this data can't support that question. A warning would let someone publish a Luminal A survival result from under three years of follow-up.
 - **What's the error budget?** How many worst-case errors of each kind (swaps, wrong labels, copies) the answer survives before its 95% range touches zero, and how many this release made. On the practice envelope: 61 swaps between ER groups, and the release made one.
 - **What if I change the question?** Ask it in the sidebar form: the same written rules judge it, with the same sources and next steps.
-- **Is AI making these calls?** No. Every verdict comes from a written rule with a cited source, and a person signs off.
+- **Is AI making these calls?** No. Every verdict comes from a written rule with a cited source, and a person signs off. An optional AI summary on the Overview puts the result into plain words with a local model on this laptop, and the screen checks every finding and sample id it cites.
 - **Clinical use?** No. It's for research only: no diagnosis, no treatment advice, no risk scores.
 - **What if a sample id shows up twice?** The tool keeps one row and reports it as its own finding, because anything that joins on the id would count it twice. If that id is in the protein data, A1 isn't rerun until there's one row per sample, and the tool says why.
 - **Why is ER-alpha Conditional even on release A?** Requiring protein data changes which hospitals the tumors come from: the hospital mix is off by 0.155 (0.154 on the practice envelope), over the question's 0.15 limit. The next step is to check that the result holds with each large hospital left out.

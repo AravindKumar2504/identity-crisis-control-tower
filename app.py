@@ -23,6 +23,7 @@ import yaml
 REPO = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 
+from tower import ai_summary  # noqa: E402
 from tower.analyses import rerun  # noqa: E402
 from tower.cards import list_cards, load_card  # noqa: E402
 from tower.checks import LOAD_ERRORS  # noqa: E402
@@ -651,6 +652,41 @@ def board_help(q: dict) -> str:
     return f"**{q['short']}:** {asks}\n\n{VERDICT_HELP.get(q['verdict'], q['verdict'])}\n\nWhy: {q['reason']}"
 
 
+def ai_box() -> None:
+    """Optional: a language model puts this result into plain words. The rules made the verdict; every id the model
+    cites is checked against the results it was given (tower/ai_summary.py)."""
+    key = f"ai|{release_label}|{card['id']}"
+    got = st.session_state.get(key)
+    with st.expander("AI summary (optional): this result in plain English", expanded=bool(got)):
+        st.caption("A language model rewrites this page's results in plain words. It reads the verdict, the reasons, "
+                   "the next steps and the release changes that touch this question, never the raw data files, and it "
+                   f"never makes the call: the rules above do. It runs on {ai_summary.backend()}.")
+        if st.button("Write the summary", key=f"ai_go|{card['id']}", icon=":material/auto_awesome:"):
+            with st.spinner("Writing the summary (5 to 20 seconds on the local model)..."):
+                try:
+                    got = ai_summary.summarize(ready, findings, where)
+                except ai_summary.ModelUnavailable as e:
+                    got = {"error": str(e)}
+                except Exception as e:                       # a model problem must never stop the screen
+                    got = {"error": f"The summary failed ({type(e).__name__}). The results above are unaffected."}
+            st.session_state[key] = got
+        if got and got.get("error"):
+            st.info(got["error"])
+        elif got:
+            st.markdown(got["text"])
+            bad, n = got["citations"]["unknown"], got["citations"]["cited"]
+            if bad:
+                st.warning(f"The model cited {plural(len(bad), 'id')} that this result doesn't contain: "
+                           f"{', '.join(bad)}. Don't rely on that part of the summary.")
+            else:
+                st.caption("Citation check: it cites no finding or sample ids." if not n else
+                           "Citation check: the one id it cites is in this result." if n == 1 else
+                           f"Citation check: all {n} finding and sample ids it cites are in this result.")
+            if not got["states_verdict"]:
+                st.caption(f"It doesn't use the verdict's own word ({ready['verdict']}); the verdict above is the tool's.")
+            st.caption(f"Written by {got['model']} in {got['seconds']:.0f} s.")
+
+
 def page_overview() -> None:
     n_changes = len(findings["findings"]) if findings else 0
     signed_by = state["signed"]["review"]["signed_off"]["by"] if state["signed"] else None
@@ -718,6 +754,7 @@ def page_overview() -> None:
                     + "</div>", unsafe_allow_html=True)
 
     st.markdown(f'<div class="ct-sec" title="{esc(SECTION_HELP["more"])}">More about this result</div>', unsafe_allow_html=True)
+    ai_box()
     with st.expander("The full reasoning"):
         st.markdown(ready["summary"])
         for r in ready["reasons"]:
