@@ -23,6 +23,8 @@ Team Identity_Crisis's entry for the OncoSys Cancer AI Lab hackathon (The Open A
 
 Needs Python 3.10 or newer and git. Put both repositories in the same folder.
 
+Check `python3 --version` first. If it says 3.9 (the built-in Python on many Macs), the install below fails with "No matching distribution found for altair>=6.3": install Python 3.12 (python.org, or `brew install python@3.12`) and run the venv command with `python3.12` instead of `python3`.
+
 ```bash
 git clone https://github.com/disleveK/oncosys-hackathon-challenge.git
 ```
