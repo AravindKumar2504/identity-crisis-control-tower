@@ -41,11 +41,11 @@ from tower.review import (ISSUE_CHOICES, REPAIR_CHOICES, SIGNOFF_CHOICES, missin
 st.set_page_config(page_title="Cohort Control Tower", page_icon=":material/cell_tower:", layout="wide")
 
 # ------------------------------------------------------------------------------------------------ look
-VERDICT = {  # icon, colour, tint, chip class
-    "Ready": ("✅", "#0E7C45", "#EAF7F0", "chip-ready"),
-    "Conditional": ("⚠️", "#B45309", "#FFF5E3", "chip-cond"),
-    "Blocked": ("⛔", "#B91C1C", "#FDECEC", "chip-block"),
-    "Insufficient Evidence": ("❓", "#1D4ED8", "#EAF0FD", "chip-unknown"),
+VERDICT = {  # colour, tint, chip class
+    "Ready": ("#0E7C45", "#EAF7F0", "chip-ready"),
+    "Conditional": ("#B45309", "#FFF5E3", "chip-cond"),
+    "Blocked": ("#B91C1C", "#FDECEC", "chip-block"),
+    "Insufficient Evidence": ("#1D4ED8", "#EAF0FD", "chip-unknown"),
 }
 STATUS = {"pass": ("passed", "chip-ready"), "warn": ("condition", "chip-cond"),
           "block": ("blocks this use", "chip-block"), "unknown": ("can't tell", "chip-unknown")}
@@ -141,7 +141,7 @@ st.markdown("""
 .ct-note {font-size:.82rem; color:#556676;}
 .ct-hero {border:1px solid #E2E8EE; border-left:6px solid var(--c); border-radius:8px; padding:18px 22px;
           background:var(--bg); height:100%;}
-.ct-eyebrow {font-size:.72rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#556676;}
+.ct-eyebrow {font-size:.82rem; font-weight:600; color:#556676;}
 .ct-verdict {font-size:2rem; font-weight:700; color:var(--c); line-height:1.15; margin:.15rem 0 .35rem;}
 .ct-q {font-weight:600; font-size:1.05rem; color:#132A3A;}
 .ct-meta {color:#556676; font-size:.85rem; margin:.25rem 0 .65rem;}
@@ -149,7 +149,7 @@ st.markdown("""
 .ct-qcard {font-size:.95rem;}
 .ct-qcard .row {margin:0 0 7px; color:#33495A; line-height:1.45;}
 .ct-qcard .lab {font-size:.82rem; font-weight:600; color:#556676; display:block;}
-.chip {display:inline-block; padding:2px 10px; border-radius:999px; font-size:.76rem; font-weight:700; margin:0 6px 4px 0;
+.chip {display:inline-block; padding:1px 8px; border-radius:4px; font-size:.76rem; font-weight:600; margin:0 6px 4px 0;
        border:1px solid transparent; white-space:nowrap;}
 .chip-ready {background:#E7F6EE; color:#0B6236; border-color:#B7E1C8;}
 .chip-cond {background:#FFF3DC; color:#7A4100; border-color:#F2CF96;}
@@ -161,9 +161,10 @@ st.markdown("""
 .ct-step .k {font-size:.82rem; color:#556676; font-weight:600;}
 .ct-step .v {font-size:1.6rem; font-weight:600; color:#132A3A; line-height:1.25;}
 .ct-step .s {font-size:.82rem; color:#556676;}
-.ct-sec {font-size:.74rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:#556676; margin:20px 0 8px;}
-.ct-reason {border:1px solid #E2E8EE; border-radius:12px; padding:10px 14px; margin-bottom:8px; background:#FFFFFF;}
-.ct-next {border:1px solid #B4DFD8; background:#F1FAF8; border-radius:12px; padding:12px 16px; margin:6px 0;}
+.ct-sec {font-size:1.05rem; font-weight:600; color:#132A3A; margin:26px 0 8px;}
+.ct-reason {border-left:2px solid #CBD5E1; padding:2px 0 2px 14px; margin:0 0 10px; font-size:.95rem; color:#21384A;}
+.ct-next {border-left:2px solid #0F766E; padding:2px 0 2px 14px; margin:0 0 12px; font-size:.95rem; color:#21384A;}
+.ct-rule {border-top:1px solid #E2E8EE; margin:14px 0 12px;}
 .ct-mono {font-family:'SF Mono', Menlo, Consolas, monospace; font-size:.8rem; color:#33495A;}
 .ct-small {font-size:.82rem; color:#556676;}
 .ct-cant {border-left:2px solid #CBD5E1; padding:2px 0 2px 14px; margin-top:6px; font-size:.95rem; color:#33495A;}
@@ -179,14 +180,10 @@ st.markdown("""
 .ct-todo {border-left:2px solid #0F766E; padding:2px 0 2px 14px; margin-top:6px; font-size:.95rem; color:#21384A;}
 .ct-todo .it {display:flex; gap:10px; align-items:flex-start; margin:5px 0; line-height:1.45;}
 .ct-todo .n {flex:none; min-width:1.1em; color:#0F766E; font-weight:600;}
-/* Stage 2 of the UI pass: the Overview's sentence-case headers and square badges. Other pages keep the old look until
-   stage 3, which folds these into the base classes. */
-.ct-sec.flat {font-size:1.05rem; font-weight:600; text-transform:none; letter-spacing:0; color:#132A3A; margin:26px 0 8px;}
-.ct-eyebrow.flat {font-size:.82rem; font-weight:600; text-transform:none; letter-spacing:0;}
-.chip.flat {border-radius:4px; padding:1px 8px; font-weight:600;}
 /* A wider sidebar (still dark, from config.toml), so its labels and help fit on one or two lines. */
 section[data-testid="stSidebar"][aria-expanded="true"] {width:380px !important; min-width:380px !important;}
 [title] {cursor:help;}
+.ct-guide {font-size:.95rem; color:#21384A; line-height:1.6; margin:4px 0;}
 .ct-intro {font-size:.95rem; color:#21384A; line-height:1.55; margin:0 0 1rem; max-width:1100px;}
 </style>
 """, unsafe_allow_html=True)
@@ -198,6 +195,12 @@ def esc(x) -> str:
 
 def plural(k: int, word: str) -> str:
     return f"{k} {word}{'' if k == 1 else 's'}"
+
+
+def block():
+    """An unboxed block, set off from what comes before it by a hairline (in place of a bordered card)."""
+    st.markdown('<div class="ct-rule"></div>', unsafe_allow_html=True)
+    return st.container()
 
 
 def chip(text: str, cls: str, title: str = "") -> str:
@@ -257,7 +260,7 @@ def inputs_sig() -> tuple:
                  for p in sorted([*root.glob("cards/*.yaml"), *root.glob("tower/**/*.py")]))
 
 
-@st.cache_data(show_spinner="Checking the release...")
+@st.cache_data(show_spinner=False)     # the caller shows a spinner naming the release and question
 def analyze(b_path: str | None, card_id: str, allow_missing: bool, sig: tuple = (), card_json: str = ""):
     card = json.loads(card_json) if card_json else load_card(card_id)   # a question asked on screen has no file
     a = load_release(RAW, "release-A")
@@ -333,6 +336,8 @@ def add_question(card: dict) -> None:
         st.session_state["custom_cards"] = [c for c in st.session_state.get("custom_cards", [])
                                             if c["id"] != card["id"]] + [card]
     st.session_state["card_title"] = card["title"]
+    if st.session_state.get("release_label"):            # judging a question is an explicit request to see it
+        st.session_state["shown"] = (st.session_state["release_label"], card["title"])
 
 
 FOOL_FILES = {"protein_rppa.tsv.gz": "protein (RPPA)", "copy_number_gistic.tsv.gz": "copy number",
@@ -346,13 +351,47 @@ FOOL_FIELD_NAMES = {"ER status": "ER status (estrogen receptor)", "PR status": "
 def open_release(label: str) -> None:
     st.session_state["pending_release"] = label
     st.session_state["goto_overview"] = True
+    st.session_state["shown"] = (label, st.session_state.get("card_title"))   # an explicit request to see it
     for k in ("card_title", "allow_missing"):     # st.switch_page would reset these sidebar choices; keep them
         if k in st.session_state:
             st.session_state[k] = st.session_state[k]
 
 
 def pick(title: str) -> None:
+    """A question-board click opens that question on the same release, with its results."""
     st.session_state["card_title"] = title
+    st.session_state["shown"] = (st.session_state.get("release_label"), title)
+
+
+def show_results() -> None:
+    st.session_state["shown"] = (st.session_state.get("release_label"), st.session_state.get("card_title"))
+
+
+REVIEW_KEYS = ("|rep|", "|repr|", "|iss|", "|issr|", "|signoff")
+
+
+def has_decisions() -> bool:
+    """Has a reviewer decided anything in this browser session (on any release and question)?"""
+    review = st.session_state.get("review", {})
+    if any(v.get("repairs") or v.get("issues") or v.get("signed") for v in review.values()):
+        return True
+    return any(isinstance(k, str) and any(r in k for r in ("|rep|", "|iss|")) and st.session_state[k]
+               for k in list(st.session_state.keys()))
+
+
+def start_fresh() -> None:
+    """Back to the empty start: no selections, no results, no review decisions (the reviewer's name stays)."""
+    for k in list(st.session_state.keys()):
+        if k in ("release_label", "card_title", "shown", "review", "decided_at", "fool", "confirm_fresh",
+                 "pending_release", "demo_missing") or (isinstance(k, str) and any(r in k for r in REVIEW_KEYS)):
+            del st.session_state[k]
+
+
+def ask_fresh() -> None:
+    if has_decisions():
+        st.session_state["confirm_fresh"] = True       # confirm first: decisions would be lost
+    else:
+        start_fresh()
 
 
 # ------------------------------------------------------------------------------------------------ sidebar
@@ -368,11 +407,22 @@ with st.sidebar:
                 unsafe_allow_html=True)
     opts = release_options()
     labels = list(opts)
+    cards = list_cards() + st.session_state.get("custom_cards", [])
+    titles = {c["title"]: c["id"] for c in cards}
+    if st.query_params.get("demo") == "1" and not st.session_state.get("demo_done"):
+        st.session_state["demo_done"] = True               # once per session, so "Start fresh" still works
+        demo_q = next((c["title"] for c in cards if c["id"] == "er-alpha-by-er"), None)
+        if "Envelope practice" in labels and demo_q:
+            st.session_state.update(release_label="Envelope practice", card_title=demo_q,
+                                    shown=("Envelope practice", demo_q))
+        else:
+            st.session_state["demo_missing"] = True        # shown on the empty start until "Start fresh"
     if st.session_state.get("pending_release") in labels:          # set by the envelope opener or "Fool the Tower"
         st.session_state["release_label"] = st.session_state.pop("pending_release")
     if st.session_state.get("release_label") not in labels:
-        st.session_state["release_label"] = labels[1] if len(labels) > 1 else labels[0]
+        st.session_state["release_label"] = None                    # nothing chosen yet: the placeholder shows
     release_label = st.selectbox("New release to check against release A", labels, key="release_label",
+                                 placeholder="Choose the new data",
                                  help="Pick which new data release to compare against release A. \"Release A only\" "
                                       "checks the reference data on its own.")
     with st.expander("Open a sealed envelope"):
@@ -396,13 +446,11 @@ with st.sidebar:
 
     st.markdown('<div class="ct-side" title="Which research question the release is judged for.">Research question</div>',
                 unsafe_allow_html=True)
-    cards = list_cards() + st.session_state.get("custom_cards", [])
-    titles = {c["title"]: c["id"] for c in cards}
     if st.session_state.get("card_title") not in titles:
-        st.session_state["card_title"] = list(titles)[0]
-    card_title = st.selectbox("Question card", list(titles), key="card_title",
+        st.session_state["card_title"] = None
+    card_title = st.selectbox("Question card", list(titles), key="card_title", placeholder="Choose a research question",
                               help="Pick the research question to judge against the chosen release.")
-    card = next(c for c in cards if c["title"] == card_title)
+    card = next((c for c in cards if c["title"] == card_title), None)
     with st.expander("Ask your own question"):
         st.caption("Build a question from a few choices; the same rules judge it as the built-in questions.")
         kind = st.selectbox("Kind of question", ["Survival by subtype", "A protein between groups", "A prediction model",
@@ -435,11 +483,14 @@ with st.sidebar:
         st.button("Judge this question", key="q_go", type="primary", on_click=add_question, args=(new,),
                   help="Add this question to the question board and judge it on the chosen release.")
         st.caption("The same rules judge it as the cards in cards/. Nothing is saved unless you download it.")
-        if card["id"].startswith("custom-"):
+        if card and card["id"].startswith("custom-"):
             st.download_button("Save the open question as a card", yaml.safe_dump(card, sort_keys=False),
                                f"{card['id']}.yaml", icon=":material/download:",
                                help="Download the open question as a card file; `python -m tower check --card <file>` "
                                     "runs it too.")
+    st.button("Show results", key="show_results", type="primary", width="stretch", on_click=show_results,
+              disabled=not (release_label and card),
+              help="Check the chosen release for the chosen question. Choose both first.")
     with st.expander("Settings"):
         st.caption("How checks that aren't built yet are counted.")
         if "allow_missing" not in st.session_state:     # the default lives here, so the toggle keeps its state by key
@@ -447,15 +498,46 @@ with st.sidebar:
         allow_missing = st.toggle("List unbuilt checks as pending", key="allow_missing",
                                   help="On: a check that isn't built yet is listed as pending and doesn't decide the "
                                        "verdict. Off: it counts as 'can't tell', the strict reading.")
+    if st.session_state.get("confirm_fresh"):
+        st.warning("Starting fresh clears the review decisions made in this browser session. Start fresh anyway?")
+        f1, f2 = st.columns(2)
+        f1.button("Yes, start fresh", key="fresh_yes", type="primary", on_click=start_fresh)
+        f2.button("Cancel", key="fresh_no", on_click=lambda: st.session_state.pop("confirm_fresh", None))
+    else:
+        st.button("Start fresh", key="fresh", width="stretch", on_click=ask_fresh,
+                  help="Clear both choices, the results and this session's review decisions, back to the empty start.")
     st.caption("Research use only. No diagnosis, treatment advice, risk score or clinical claim.")
 reviewer = st.session_state.get("reviewer", "")          # entered on the Review page, kept across pages
 role = st.session_state.get("reviewer_role", "")
 
+# ------------------------------------------------------------------------------------------------ gate
+HEAD = ('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
+        '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
+        '<span class="ct-note">Research use only</span></div>')
+shown = st.session_state.get("shown")
+if not (release_label and card) or tuple(shown or ()) != (release_label, card_title):
+    st.markdown(HEAD, unsafe_allow_html=True)
+    if shown and release_label and card:            # results were shown, then the selection changed
+        st.info(f"Selection changed: click Show results to check {release_label} for "
+                f"{card.get('short_title') or card['title']}.")
+    else:
+        if st.session_state.get("demo_missing"):
+            st.info("Open the practice envelope first (python -m tower doctor does this), then reload.")
+        st.markdown('<div class="ct-sec">Start here</div>'
+                    '<div class="ct-guide">1. Choose the new data in the sidebar, or open a sealed envelope.<br>'
+                    '2. Choose a research question.<br>3. Click <b>Show results</b>.</div>'
+                    '<div class="ct-sec">What the verdicts mean</div>'
+                    + "".join(f'<div class="ct-guide">{chip(v, VERDICT[v][2], VERDICT_HELP[v])} '
+                              f'{esc(VERDICT_HELP[v].split(": ", 1)[1])}</div>' for v in VERDICT),
+                    unsafe_allow_html=True)
+    st.stop()
+
 # ------------------------------------------------------------------------------------------------ analysis
 b_path = opts[release_label]
 try:
-    findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
-                                       json.dumps(card) if card["id"].startswith("custom-") else "")
+    with st.spinner(f"Checking {release_label} for {card.get('short_title') or card['title']}…"):
+        findings, ready, members = analyze(b_path, card["id"], allow_missing, inputs_sig(),
+                                           json.dumps(card) if card["id"].startswith("custom-") else "")
 except Exception as e:  # never show a stack trace to a judge
     st.error(f"The check couldn't run: {e}")
     st.stop()
@@ -507,14 +589,11 @@ if state["signed"] and state.get("signed_inputs") != signature:
 touching = {t["finding"] for t in ready["release_changes"]}
 
 # ------------------------------------------------------------------------------------------------ header (every page)
-icon, colour, tint, vchip = VERDICT[ready["verdict"]]
-where = "release A on its own" if b_path is None else f"{release_label}, compared with release A"
-st.markdown('<div class="ct-head"><span class="ct-title">Cohort Control Tower</span>'
-            '<span class="ct-sub">Is a new TCGA breast cancer release still fit for your research question?</span>'
-            '<span class="ct-note">Research use only</span></div>', unsafe_allow_html=True)
-st.markdown(f'<div class="ct-ctx"><b>Release:</b> {esc(where)}<span class="sep">·</span>'
-            f'<b>Question:</b> {esc(card.get("short_title") or card["title"])}<span class="sep">·</span>'
-            f'<b>Verdict:</b> {chip(ready["verdict"], vchip + " flat", VERDICT_HELP[ready["verdict"]])}</div>',
+colour, tint, vchip = VERDICT[ready["verdict"]]
+where = "release A on its own" if b_path is None else f"{release_label} compared with release A"
+st.markdown(HEAD, unsafe_allow_html=True)
+st.markdown(f'<div class="ct-ctx"><b>Now showing:</b> {esc(where)}, for: {esc(card["title"])}<span class="sep">·</span>'
+            f'<b>Verdict:</b> {chip(ready["verdict"], vchip, VERDICT_HELP[ready["verdict"]])}</div>',
             unsafe_allow_html=True)
 
 
@@ -575,7 +654,7 @@ def page_overview() -> None:
     left, right = st.columns([3, 2], gap="medium")
     left.markdown(f"""
 <div class="ct-hero" style="--c:{colour}; --bg:{tint}">
-  <div class="ct-eyebrow flat" title="{esc(SECTION_HELP["verdict"])}">Verdict for this question</div>
+  <div class="ct-eyebrow" title="{esc(SECTION_HELP["verdict"])}">Verdict for this question</div>
   <div class="ct-verdict" title="{esc(VERDICT_HELP[ready['verdict']])}">{esc(ready['verdict'])}</div>
   <div class="ct-q">{esc(card['title'])}</div>
   <div class="ct-meta">{esc(where)} · {ready['group_size']} samples studied</div>
@@ -599,7 +678,7 @@ def page_overview() -> None:
         st.markdown(f'<div class="ct-budget" title="{esc(SECTION_HELP["budget"])}"><b>Error budget.</b> {esc(budget_plain(ready["error_budget"]))}</div>',
                     unsafe_allow_html=True)
 
-    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["board"])}">Same release, every question: the verdict depends '
+    st.markdown(f'<div class="ct-sec" title="{esc(SECTION_HELP["board"])}">Same release, every question: the verdict depends '
                 'on the question</div>',
                 unsafe_allow_html=True)
     st.caption("Click a question to open it here. The highlighted one is shown above.")
@@ -610,13 +689,13 @@ def page_overview() -> None:
                       type="primary" if q["id"] == card["id"] else "secondary", help=board_help(q), width="stretch")
             extra = ([f"{plural(q['pending'], 'check')} not built"] if q.get("pending") else []) + \
                     (["shown above"] if q["id"] == card["id"] else [])
-            st.markdown(chip(q["verdict"], VERDICT[q["verdict"]][3] + " flat", VERDICT_HELP[q["verdict"]])
+            st.markdown(chip(q["verdict"], VERDICT[q["verdict"]][2], VERDICT_HELP[q["verdict"]])
                         + (f'<span class="ct-small">{esc(" · ".join(extra))}</span>' if extra else ""),
                         unsafe_allow_html=True)
 
     nxt, cant = st.columns(2, gap="medium")
     with nxt:
-        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["next"])}">What to do next</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ct-sec" title="{esc(SECTION_HELP["next"])}">What to do next</div>', unsafe_allow_html=True)
         if ready["next_steps"]:
             st.markdown('<div class="ct-todo">' + "".join(
                 f'<div class="it"><span class="n">{i}</span><span>{esc(s["step"])}</span></div>'
@@ -628,12 +707,12 @@ def page_overview() -> None:
         if len(ready["next_steps"]) > 3:
             st.caption(f"{len(ready['next_steps']) - 3} more, with the evidence that would change each, on the Evidence page.")
     with cant:
-        st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["cant"])}">What this can\'t tell you</div>',
+        st.markdown(f'<div class="ct-sec" title="{esc(SECTION_HELP["cant"])}">What this can\'t tell you</div>',
                     unsafe_allow_html=True)
         st.markdown('<div class="ct-cant">' + "".join(f'<div class="it">• {esc(x)}</div>' for x in ready["cannot_tell"])
                     + "</div>", unsafe_allow_html=True)
 
-    st.markdown(f'<div class="ct-sec flat" title="{esc(SECTION_HELP["more"])}">More about this result</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ct-sec" title="{esc(SECTION_HELP["more"])}">More about this result</div>', unsafe_allow_html=True)
     with st.expander("The full reasoning"):
         st.markdown(ready["summary"])
         for r in ready["reasons"]:
@@ -672,7 +751,7 @@ def render_checks() -> None:
         if not x["material"]:
             label, cls = ("not built yet" if (x.get("numbers") or {}).get("pending")
                           else "can't tell" if x["status"] == "unknown" else "not material here"), "chip-muted"
-        with st.container(border=True):
+        with block():
             st.markdown(chip(label, cls) + (chip("already in release A", "chip-muted") if x["pre_existing"] and x["material"] else "")
                         + f'<b>{esc(x["title"])}</b> &nbsp;<span class="ct-mono">{esc(x["id"])}</span>',
                         unsafe_allow_html=True)
@@ -694,21 +773,19 @@ def page_changed() -> None:
         st.info("Pick a new release in the sidebar to see what changed against release A.")
     else:
         rv = VERDICT[findings["verdict"]]
-        with st.container(border=True):
+        with block():
             c1, c2 = st.columns([4, 1], vertical_alignment="center")
-            c1.markdown('<div class="ct-eyebrow">Release check</div>' + chip(f"{rv[0]} {findings['verdict']}", rv[3])
+            c1.markdown('<div class="ct-eyebrow">Release check</div>' + chip(findings["verdict"], rv[2], VERDICT_HELP[findings["verdict"]])
                         + f'<span class="ct-small">{esc(findings["verdict_reason"])}</span>', unsafe_allow_html=True)
             for n in findings.get("notes", []):
                 c1.caption(n)
-            c2.download_button("⬇ Release notes", plain_report(findings), "release_notes.md", width="stretch",
+            c2.download_button("Release notes", plain_report(findings), "release_notes.md", width="stretch", icon=":material/download:",
                                help="Every finding in plain English, as Markdown.")
         if members:
             st.markdown('<div class="ct-sec">Same count, different members</div>', unsafe_allow_html=True)
-            colors = {"swapped": "#B45309", "copied in": "#B91C1C", "removed": "#6B7280", "new": "#1D4ED8",
-                      "relabelled or edited": "#7C3AED"}
             for m in members:
                 changed = sorted(set(m["swapped"]) | set(m["copied"]) | set(m["lost"]) | set(m["gained"]) | set(m["relabeled"]))
-                with st.container(border=True):
+                with block():
                     st.markdown(f'<span class="ct-mono"><b>{esc(m["file"])}</b></span>', unsafe_allow_html=True)
                     c1, c2, c3, c4 = st.columns([1, 1, 1, 3])
                     c1.metric("Release A", m["n_a"], help="Samples in this file in release A")
@@ -719,11 +796,9 @@ def page_changed() -> None:
                                                                      ("lost", "removed"), ("gained", "new"),
                                                                      ("relabeled", "relabelled or edited")] if m[k]]
                     if rows:
-                        c4.altair_chart(alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadius=4).encode(
+                        c4.altair_chart(alt.Chart(pd.DataFrame(rows)).mark_bar(cornerRadius=2, color="#0F766E").encode(
                             x=alt.X("n:Q", title="samples", axis=alt.Axis(tickMinStep=1)),
                             y=alt.Y("what:N", title=None, sort="-x"),
-                            color=alt.Color("what:N", scale=alt.Scale(domain=list(colors), range=list(colors.values())),
-                                            legend=None),
                             tooltip=["what", "n"]).properties(height=46 * len(rows) + 40))
                     if m["n_a"] == m["n_b"] and changed:
                         st.caption("The total count is identical, so a count check would say nothing changed. "
@@ -732,7 +807,7 @@ def page_changed() -> None:
         ba_tables = before_after_tables(b_path, inputs_sig())
         for f in findings["findings"]:
             samples = [e for e in f["evidence"] if e["kind"] == "sample"]
-            with st.container(border=True):
+            with block():
                 head = (f'<b>{esc(f["id"])} · {esc(KIND.get(f["kind"], f["kind"]))}</b> &nbsp;'
                         + chip(f"severity {f['severity']}", SEVERITY.get(f["severity"], "chip-muted"))
                         + chip(f"confidence {f['confidence']}", "chip-muted")
@@ -796,9 +871,9 @@ def render_analyses() -> None:
                  for aid, a in ready["analyses"].items()]
     rob = ready.get("robustness") or {}
     if rob:
-        lab, cls = {"holds": ("✅ The conclusion holds", "chip-ready"), "fragile": ("⚠️ The conclusion is fragile", "chip-cond"),
-                    "reversed": ("⛔ The conclusion reverses", "chip-block")}[rob["status"]]
-        with st.container(border=True):
+        lab, cls = {"holds": ("The conclusion holds", "chip-ready"), "fragile": ("The conclusion is fragile", "chip-cond"),
+                    "reversed": ("The conclusion reverses", "chip-block")}[rob["status"]]
+        with block():
             st.markdown('<div class="ct-eyebrow">Does the conclusion still hold?</div>' + chip(lab, cls)
                         + f'<span class="ct-small">{esc(rob["claim"])}</span>', unsafe_allow_html=True)
             k1, k2, k3, k4 = st.columns(4)
@@ -813,7 +888,7 @@ def render_analyses() -> None:
                        "sampling variation only, not systematic errors such as a mislabelled ER test.")
     eb = ready.get("error_budget") or {}
     if eb:
-        with st.container(border=True):
+        with block():
             st.markdown('<div class="ct-eyebrow">Error budget: how wrong can the data be before the answer changes?</div>'
                         + f'<span class="ct-small">{esc(eb["conclusion"])}</span>', unsafe_allow_html=True)
             cols = st.columns(len(eb["items"]))
@@ -825,7 +900,7 @@ def render_analyses() -> None:
             st.caption(eb["method"])
     if items:
         ref = reference_numbers(b_path or str(RAW))
-        with st.container(border=True):
+        with block():
             st.markdown('<div class="ct-eyebrow">Check it yourself: the organizers\' own script on the same release</div>',
                         unsafe_allow_html=True)
             if "error" in ref:
@@ -841,7 +916,7 @@ def render_analyses() -> None:
                         pairs = [("Samples", ours.get("n_samples"), theirs.get("n_samples")),
                                  ("Subtype counts", ", ".join(f"{k} {v}" for k, v in sorted((ours.get("counts") or {}).items())),
                                   ", ".join(f"{k} {v}" for k, v in sorted((theirs.get("counts") or {}).items())))]
-                    rows += [{"Analysis": aid, "Number": n, "Match": "✅ same" if o == r else "❌ different",
+                    rows += [{"Analysis": aid, "Number": n, "Match": "same" if o == r else "different",
                               "This tool": str(o), "Organizers' script": str(r)} for n, o, r in pairs]
                 st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
                 target = pathlib.Path(b_path) if b_path else RAW
@@ -855,7 +930,7 @@ def render_analyses() -> None:
     if not items:
         st.info("This question depends on no protected analysis.")
     for aid, title, status, reason, before, after in items:
-        with st.container(border=True):
+        with block():
             cls = {"changed": "chip-cond", "unchanged": "chip-ready", "not_rerun": "chip-muted", "run": "chip-teal"}.get(status, "chip-muted")
             st.markdown(f"<b>{esc(aid)} · {esc(title)}</b> &nbsp;" + chip(status.replace("_", " "), cls), unsafe_allow_html=True)
             st.caption(reason)
@@ -879,7 +954,7 @@ def render_analyses() -> None:
 # ------------------------------------------------------------------------------------------------ evidence trail
 def blast_radius() -> str:
     """Each change, the file it hit, the analysis that reads it, and this question."""
-    vcol = VERDICT[ready["verdict"]][1]
+    vcol = VERDICT[ready["verdict"]][0]
     q = card["title"] if len(card["title"]) < 48 else card["title"][:45] + "..."
     g = ['digraph G {', 'rankdir=LR; bgcolor="transparent"; nodesep=0.25; ranksep=0.6;',
          'node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10, color="#CBD5DF", fillcolor="#FFFFFF", fontcolor="#132A3A"];',
@@ -913,7 +988,7 @@ def blast_radius() -> str:
             col = {"block": "#FDE7E7", "warn": "#FFF3DC", "unknown": "#E7EDFB"}[x["status"]]
             label = x["id"].replace('"', "'")
             g.append(f'"{label}" [label="{label}\\n{STATUS[x["status"]][0]}", fillcolor="{col}"];')
-            g.append(f'"{label}" -> Q [color="{VERDICT[ready["verdict"]][1]}"];')
+            g.append(f'"{label}" -> Q [color="{VERDICT[ready["verdict"]][0]}"];')
     if len(g) == 5:
         g.append('ok [label="nothing material touches this question", fillcolor="#E7F6EE"]; ok -> Q;')
     for file in uses:
@@ -952,7 +1027,7 @@ def page_review() -> None:
     if not repairs:
         st.caption("No release changes, so nothing to fix.")
     for r in repairs:
-        with st.container(border=True):
+        with block():
             st.markdown(f"<b>{esc(r['id'])} · {esc(ACTION.get(r['action'], r['action']))}</b> &nbsp;"
                         + chip(f"for {', '.join(r['addresses'])}", "chip-muted")
                         + chip(plural(len(r["targets"]), "target"), "chip-muted"), unsafe_allow_html=True)
@@ -960,8 +1035,8 @@ def page_review() -> None:
             row = st.container(horizontal=True, vertical_alignment="bottom")     # side by side; wraps when narrow
             row.segmented_control(f"Decision for {r['id']}", REPAIR_CHOICES, key=f"{ctx}|rep|{r['id']}",
                                  disabled=not (reviewer and role),
-                                 format_func=lambda o: {"approve": "✅ approve", "reject": "⛔ reject",
-                                                        "request_more_evidence": "❓ ask for more"}[o])
+                                 format_func=lambda o: {"approve": "approve", "reject": "reject",
+                                                        "request_more_evidence": "ask for more"}[o])
             row.text_input(f"Reason for {r['id']}", key=f"{ctx}|repr|{r['id']}", disabled=not (reviewer and role),
                           placeholder="Why (needed to reject or ask for more)")
 
@@ -974,7 +1049,7 @@ def page_review() -> None:
     for iid in required_issues:
         xs = by_id.get(iid) or [{"status": "unknown", "title": iid}]
         x = xs[0]
-        with st.container(border=True):
+        with block():
             st.markdown(chip(STATUS[x["status"]][0], STATUS[x["status"]][1]) + f"<b>{esc(iid)}</b>", unsafe_allow_html=True)
             for y in xs:
                 st.markdown(y["title"])
@@ -988,7 +1063,7 @@ def page_review() -> None:
     missing = missing_decisions(findings, ready, state["repairs"], state["issues"])
     unexplained = [k for k, d in {**state["repairs"], **state["issues"]}.items()
                    if d["decision"] in ("reject", "request_more_evidence", "disagree", "need more evidence") and not d["reason"]]
-    with st.container(border=True):
+    with block():
         counts = pd.Series([d["decision"] for d in {**state["repairs"], **state["issues"]}.values()]).value_counts()
         if len(counts):
             st.markdown("".join(chip(f"{v} {k.replace('_', ' ')}", "chip-muted") for k, v in counts.items()),
@@ -1029,13 +1104,14 @@ def page_review() -> None:
         if check:
             st.caption(check)
         d1, d2, d3 = st.columns(3)
-        d1.download_button("⬇ Review record (Markdown)", record_markdown(sd, findings), "review_record.md")
-        d2.download_button("⬇ readiness.json with sign-off", json.dumps(sd, indent=2, default=str),
-                           "readiness.signed.json")
+        d1.download_button("Review record (Markdown)", record_markdown(sd, findings), "review_record.md",
+                           icon=":material/download:")
+        d2.download_button("readiness.json with sign-off", json.dumps(sd, indent=2, default=str),
+                           "readiness.signed.json", icon=":material/download:")
         if findings:
-            d3.download_button("⬇ findings.json with decisions",
+            d3.download_button("findings.json with decisions",
                                json.dumps(with_decisions(findings, state["repairs"], reviewer, role), indent=2),
-                               "findings.reviewed.json")
+                               "findings.reviewed.json", icon=":material/download:")
 
 
 # ------------------------------------------------------------------------------------------------ fool the tower
@@ -1085,7 +1161,7 @@ def page_fool() -> None:
     res = st.session_state.get("fool")
     if res:
         caught = not res["missed"] and not res["false_alarms"]
-        st.markdown(chip("✅ Not fooled" if caught else "⚠️ Partly fooled", "chip-ready" if caught else "chip-cond")
+        st.markdown(chip("Not fooled" if caught else "Partly fooled", "chip-ready" if caught else "chip-cond")
                     + f"<b>The tool found {res['found']} of the {res['planted_samples']} planted samples, with "
                     f"{plural(len(res['false_alarms']), 'false alarm')}.</b>", unsafe_allow_html=True)
         st.dataframe(pd.DataFrame(res["rows"]), hide_index=True, width="stretch")

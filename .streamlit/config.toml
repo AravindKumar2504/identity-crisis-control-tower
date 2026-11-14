@@ -9,14 +9,15 @@ linkColor = "#0F766E"
 font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 headingFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 codeFont = "'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
-baseRadius = "0.65rem"
-buttonRadius = "0.55rem"
+baseRadius = "0.4rem"
+buttonRadius = "0.4rem"
 borderColor = "#E2E8EE"
 showWidgetBorder = true
-metricValueFontSize = "1.85rem"
-metricValueFontWeight = 700
+metricValueFontSize = "1.6rem"
+metricValueFontWeight = 600
 dataframeHeaderBackgroundColor = "#F3F6F8"
-chartCategoricalColors = ["#0F766E", "#C2410C", "#1D4ED8", "#A16207", "#7C3AED", "#BE123C"]
+# Charts: one teal accent, then greys (status colours are kept for the badges).
+chartCategoricalColors = ["#0F766E", "#64748B", "#94A3B8", "#134E4A"]
 
 [theme.sidebar]
 backgroundColor = "#0E2433"
