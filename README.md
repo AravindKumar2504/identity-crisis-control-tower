@@ -44,6 +44,9 @@ On Windows, activate with `.venv\Scripts\activate`. On a Mac with Python from py
 Then check everything in one command, from inside `identity-crisis-control-tower`. It checks Python and the packages, release A against its published checksums, and the sealed envelopes, then runs the practice envelope and compares the result with the organizers' reference output (about 3 seconds; add `--full` to also run the scorecard):
 
 ```bash
+cd identity-crisis-control-tower
+```
+```bash
 python -m tower doctor
 ```
 
