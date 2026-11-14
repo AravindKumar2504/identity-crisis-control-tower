@@ -103,6 +103,16 @@ The Track 1 warm-up says judges may change the question. Open **Ask your own que
 - **What if I change the question?** Ask it in the sidebar form: the same written rules judge it, with the same sources and next steps.
 - **Is AI making these calls?** No. Every verdict comes from a written rule with a cited source, and a person signs off.
 - **Clinical use?** No. It's for research only: no diagnosis, no treatment advice, no risk scores.
+- **What if a sample id shows up twice?** The tool keeps one row and reports it as its own finding, because anything that joins on the id would count it twice. If that id is in the protein data, A1 isn't rerun until there's one row per sample, and the tool says why.
+- **Why is ER-alpha Conditional even on release A?** Requiring protein data changes which hospitals the tumors come from: the hospital mix is off by 0.155 (0.154 on the practice envelope), over the question's 0.15 limit. The next step is to check that the result holds with each large hospital left out.
+- **How do you decide severity?** By the measured effect on the answer: we undo each change on its own and rerun A1. The swap moves the difference by 1.16%, the copies by 0.12%, the losses by 0.03%. On the practice envelope that gives the organizers' reference severities: swap high, copies high, losses medium.
+- **The release says one verdict and the question another. Which is right?** They answer different questions. The release verdict applies the organizers' rule for their two analyses, A1 and A2; the question's verdict says whether this release fits one research question, and lists the same changes with their fixes. If they ever disagree, go with the stricter one.
+- **How fast is it?** Unsealing to `findings.json` takes under 2 seconds on the practice envelope, and each test release takes about a second. The organizers ask for under a minute.
+- **What else did you test?** 481 random releases from the organizers' generator: 476 match its answer key exactly, in 4 of the other 5 the key lists a change that left no trace in the data, and the fifth is a copy whose original was removed, which the tool reports as a rename. Also 30 damaged copies of the practice release, which all run without a crash, and 16 unit tests for the release A checks.
+- **Who's the user, and what do they do next?** A research data engineer who keeps an analysis-ready copy of the TCGA breast cancer data. They approve, reject or ask for more evidence on each proposed fix, then sign off, and the decisions are saved in the event's shared format.
+- **Couldn't a changed label be a real correction?** Yes, and the tool says so: it can't see the pathology report behind a value. It reports the change, asks a person to confirm it against the source records, and keeps the release A value until then.
+- **Would this work on other data?** The release comparison works on any release laid out the same way: tables keyed by sample id, and matrices with one column per sample. Research questions are small YAML files, so a new question is a new file. The release A checks are specific to TCGA breast cancer fields.
+- **What would you build next?** Run the hospital leave-one-out check automatically, and hand `findings.json` to a Repair Review Desk team so the fixes can be applied.
 
 ## Check at Friday's 9 PM dry run
 
